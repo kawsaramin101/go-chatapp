@@ -16,16 +16,27 @@ func main() {
 		log.Fatal(err)
 	}
 
-	http.HandleFunc("/", auth_views.Index)
-	http.HandleFunc("/login", auth_views.Login)
-	http.HandleFunc("/signup", auth_views.Signup)
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/", auth_views.Index)
+	mux.HandleFunc("/login", auth_views.Login)
+	mux.HandleFunc("/signup", auth_views.Signup)
+
+	loggedMux := LoggingMiddleware(mux)
 
 	fmt.Println("Listening to port 8000")
 
-	err = http.ListenAndServe(":8000", nil)
+	err = http.ListenAndServe(":8000", loggedMux)
 
 	if err != nil {
 		fmt.Println(err)
 	}
 
+}
+
+func LoggingMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		log.Printf("Method: %s, URL: %s", r.Method, r.URL)
+		next.ServeHTTP(w, r)
+	})
 }
