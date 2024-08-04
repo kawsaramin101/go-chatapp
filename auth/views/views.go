@@ -70,19 +70,23 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(username, password)
 
-	var hashedPassword string
-	query := "SELECT password FROM user WHERE username = ?"
-	err := db.DB.QueryRow(query, username).Scan(&hashedPassword)
+	query := "SELECT id, username, secondary_id, password FROM user WHERE username = ?"
+	row := db.DB.QueryRow(query, username)
+
+	var user User
+	err := row.Scan(&user.ID, &user.Username, &user.SecondaryID, &user.Password)
 	if err != nil {
 		if err == sql.ErrNoRows {
+			// No user found
 			http.Error(w, "Username or password didn't match", http.StatusUnauthorized)
 			return
 		}
+		// Other errors
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
 	if err != nil {
 		http.Error(w, "Username or password didn't match", http.StatusUnauthorized)
@@ -91,11 +95,11 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	session, _ := store.Get(r, "session-name")
 
 	session.Values["authenticated"] = true
-    session.Values["username"] = username
-    session.Values["userID"] = 12345 // Example user ID
-    session.Save(r, w)
-    http.Redirect(w, r, "/", http.StatusFound)
-
+	session.Values["username"] = user.Username
+	session.Values["userID"] = user.ID
+	session.Values["userSecondaryId"] = user.SecondaryID
+	session.Save(r, w)
+	http.Redirect(w, r, "/", http.StatusFound)
 }
 
 func signupGet(w http.ResponseWriter, r *http.Request) {
@@ -155,4 +159,11 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusCreated)
 
+}
+
+type User struct {
+	ID          int    `json:"id"`
+	Username    string `json:"username"`
+	SecondaryID string `json:"secondary_id"`
+	Password    string `json:"password"`
 }
