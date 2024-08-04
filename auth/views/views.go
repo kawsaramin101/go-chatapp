@@ -78,18 +78,18 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			// No user found
-			http.Error(w, "Username or password didn't match", http.StatusUnauthorized)
+			http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
 			return
 		}
 		// Other errors
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 
 	if err != nil {
-		http.Error(w, "Username or password didn't match", http.StatusUnauthorized)
+		http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
 		return
 	}
 	session, _ := store.Get(r, "session-name")
@@ -99,7 +99,7 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	session.Values["userID"] = user.ID
 	session.Values["userSecondaryId"] = user.SecondaryID
 	session.Save(r, w)
-	http.Redirect(w, r, "/", http.StatusFound)
+	w.WriteHeader(http.StatusOK)
 }
 
 func signupGet(w http.ResponseWriter, r *http.Request) {
