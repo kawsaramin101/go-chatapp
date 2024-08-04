@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	auth_views "chatapp/auth/views"
+	chat_views "chatapp/chat"
 	"chatapp/db"
 )
 
@@ -18,7 +19,7 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/", auth_views.Index)
+	mux.HandleFunc("/", chat_views.Index)
 	mux.HandleFunc("/login", auth_views.Login)
 	mux.HandleFunc("/signup", auth_views.Signup)
 

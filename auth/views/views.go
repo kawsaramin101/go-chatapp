@@ -17,11 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-var store = sessions.NewCookieStore([]byte("your-secret-key"))
-
-func Index(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintf(w, "Hello world")
-}
+var Store = sessions.NewCookieStore([]byte("your-secret-key"))
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
@@ -92,7 +88,7 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
 		return
 	}
-	session, _ := store.Get(r, "session-name")
+	session, _ := Store.Get(r, "auth-session")
 
 	session.Values["authenticated"] = true
 	session.Values["username"] = user.Username
