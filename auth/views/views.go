@@ -154,7 +154,6 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusCreated)
-
 }
 
 type User struct {

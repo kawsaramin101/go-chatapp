@@ -26,7 +26,7 @@ func InitializeDB(dataSourceName string) error {
 	if err != nil {
 		return err
 	}
-	filePath := filepath.Join(cwd, "db", "create_user_table.sql")
+	filePath := filepath.Join(cwd, "db", "create_tables.sql")
 
 	err = CreateTables(filePath)
 	if err != nil {

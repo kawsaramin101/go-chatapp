@@ -4,11 +4,167 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Chat Home</title>
-        <style></style>
+        <style>
+            html {
+                height: 100%;
+                overflow: hidden;
+            }
+
+            body {
+                margin: 0;
+                padding: 0;
+                height: 100%;
+                background: gray;
+                display: flex;
+                flex-direction: column;
+            }
+
+            main {
+                display: flex;
+                flex-direction: column;
+                height: 100%;
+            }
+
+            #log {
+                background: white;
+                margin: 0.5em;
+                padding: 0.5em;
+                flex: 1;
+                overflow: auto;
+            }
+
+            #form,
+            #user-form {
+                padding: 0 0.5em;
+                margin: 0.5em;
+                background: white;
+                display: flex;
+                align-items: center;
+                gap: 0.5em;
+            }
+
+            #form input[type="text"],
+            #user-form input[type="text"] {
+                flex: 0.1;
+            }
+        </style>
     </head>
     <body>
-        <main></main>
+        <main>
+            <form id="connectionForm">
+                <input
+                    type="text"
+                    id="username"
+                    name="username"
+                    placeholder="Username"
+                />
+                <button type="submit">Request Connection</button>
+            </form>
+            <div id="log"></div>
+            <form id="form">
+                <input type="text" id="msg" size="64" autofocus />
+                <input type="submit" value="Send" />
+            </form>
+        </main>
 
-        <script></script>
+        <script>
+            window.onload = function () {
+                const connectionForm =
+                    document.querySelector("#connectionForm");
+
+                connectionForm.addEventListener(
+                    "submit",
+                    async function (event) {
+                        event.preventDefault();
+
+                        try {
+                            const response = await fetch(
+                                "/request-connection",
+                                {
+                                    method: "POST",
+                                    headers: {
+                                        "Content-Type":
+                                            "application/x-www-form-urlencoded",
+                                    },
+                                    body: new URLSearchParams(
+                                        new FormData(connectionForm),
+                                    ),
+                                },
+                            );
+
+                            if (response.ok) {
+                                const data = await response.json();
+                                // Handle the ID from the payload
+                                const userId = data.id;
+                                console.log("User ID:", userId);
+                            } else if (response.status === 404) {
+                                alert("Username doesn't exist.");
+                            } else {
+                                alert("An error occurred.");
+                            }
+                        } catch (error) {
+                            console.error("Fetch error:", error);
+                        }
+                    },
+                );
+
+                var conn;
+                var msg = document.getElementById("msg");
+                var log = document.getElementById("log");
+
+                function appendLog(item) {
+                    var doScroll =
+                        log.scrollTop > log.scrollHeight - log.clientHeight - 1;
+                    log.appendChild(item);
+                    if (doScroll) {
+                        log.scrollTop = log.scrollHeight - log.clientHeight;
+                    }
+                }
+
+                document.getElementById("form").onsubmit = function () {
+                    if (!conn) {
+                        return false;
+                    }
+                    if (!msg.value) {
+                        return false;
+                    }
+                    conn.send(msg.value);
+                    msg.value = "";
+                    return false;
+                };
+
+                if (window["WebSocket"]) {
+                    conn = new WebSocket(
+                        "ws://" + document.location.host + "/ws",
+                    );
+
+                    conn.onopen = function () {
+                        console.log(
+                            "WebSocket connection established successfully.",
+                        );
+                    };
+
+                    conn.onclose = function (evt) {
+                        var item = document.createElement("div");
+                        item.innerHTML = "<b>Connection closed.</b>";
+                        appendLog(item);
+                    };
+                    conn.onmessage = function (evt) {
+                        var messages = evt.data.split("\n");
+
+                        for (var i = 0; i < messages.length; i++) {
+                            var item = document.createElement("div");
+                            item.innerText = messages[i];
+                            appendLog(item);
+                        }
+                    };
+                } else {
+                    var item = document.createElement("div");
+                    item.innerHTML =
+                        "<b>Your browser does not support WebSockets.</b>";
+                    appendLog(item);
+                }
+            };
+        </script>
     </body>
 </html>
