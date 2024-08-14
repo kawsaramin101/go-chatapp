@@ -1,34 +1,41 @@
 package db
 
 import (
-	"database/sql"
 	"log"
-	"os"
-	"path/filepath"
 
-	_ "github.com/mattn/go-sqlite3"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
-var DB *sql.DB
+var DB *gorm.DB
+
+type User struct {
+	gorm.Model
+	SecondaryID            string        `gorm:"unique;not null"`
+	Username               string        `gorm:"not null"`
+	Password               string        `gorm:"not null"`
+	ConnectionRequestsFrom []*Connection `gorm:"foreignKey:SendBy;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	ConnectionRequestsTo   []*Connection `gorm:"foreignKey:SendTo;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+}
+
+// Connection model
+type Connection struct {
+	gorm.Model
+	SecondaryID string `gorm:"unique;not null"`
+	SendBy      uint   `gorm:"not null"`
+	SendTo      uint   `gorm:"not null"`
+	IsAccepted  bool
+}
 
 func InitializeDB(dataSourceName string) error {
+
 	var err error
-	DB, err = sql.Open("sqlite3", dataSourceName)
-
+	DB, err = gorm.Open(sqlite.Open(dataSourceName), &gorm.Config{})
 	if err != nil {
-		return err
-	}
-	if err = DB.Ping(); err != nil {
-		return err
+		panic("failed to connect database")
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	filePath := filepath.Join(cwd, "db", "create_tables.sql")
-
-	err = CreateTables(filePath)
+	err = DB.AutoMigrate(&User{}, &Connection{})
 	if err != nil {
 		return err
 	}
@@ -37,21 +44,11 @@ func InitializeDB(dataSourceName string) error {
 }
 
 func CloseDB() {
-	if err := DB.Close(); err != nil {
+	sqlDB, err := DB.DB()
+	if err != nil {
 		log.Fatal(err)
 	}
-}
-
-func CreateTables(filePath string) error {
-
-	sqlBytes, err := os.ReadFile(filePath)
-	if err != nil {
-		return err
+	if err := sqlDB.Close(); err != nil {
+		log.Fatal(err)
 	}
-
-	_, err = DB.Exec(string(sqlBytes))
-	if err != nil {
-		return err
-	}
-	return nil
 }

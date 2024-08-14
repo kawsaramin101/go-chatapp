@@ -17,10 +17,12 @@ import (
 //
 
 func main() {
-	err := db.InitializeDB("your_database.db")
+	err := db.InitializeDB("main.db")
 
 	if err != nil {
 		log.Fatal(err)
+	} else {
+		fmt.Println("Connected to database")
 	}
 
 	mux := http.NewServeMux()
@@ -29,6 +31,7 @@ func main() {
 
 	mux.HandleFunc("/", chat_views.Index)
 	mux.HandleFunc("/login", auth_views.Login)
+	mux.HandleFunc("/logout", auth_views.Logout)
 	mux.HandleFunc("/signup", auth_views.Signup)
 	mux.HandleFunc("/request-connection", chat_views.RequestConnection)
 

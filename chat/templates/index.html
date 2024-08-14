@@ -60,6 +60,9 @@
                 />
                 <button type="submit">Request Connection</button>
             </form>
+            <form id="logoutForm">
+                <button type="submit">Logout</button>
+            </form>
             <div id="log"></div>
             <form id="form">
                 <input type="text" id="msg" size="64" autofocus />
@@ -107,6 +110,31 @@
                         }
                     },
                 );
+
+                const logoutForm = document.querySelector("#logoutForm");
+
+                logoutForm.addEventListener("submit", (event) => {
+                    event.preventDefault();
+                    fetch("/logout", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                    })
+                        .then((response) => {
+                            if (response.ok) {
+                                // Redirect to the login page
+                                window.location.href = "/login";
+                            } else {
+                                // Handle the error
+                                alert("Logout failed. Please try again.");
+                            }
+                        })
+                        .catch((error) => {
+                            console.error("Error:", error);
+                            alert("An error occurred. Please try again.");
+                        });
+                });
 
                 var conn;
                 var msg = document.getElementById("msg");

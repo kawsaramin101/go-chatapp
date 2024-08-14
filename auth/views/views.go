@@ -2,7 +2,6 @@ package views
 
 import (
 	db "chatapp/db"
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -15,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
 var Store = sessions.NewCookieStore([]byte("your-secret-key"))
@@ -24,6 +24,33 @@ func Login(w http.ResponseWriter, r *http.Request) {
 		loginGet(w, r)
 	} else if r.Method == http.MethodPost {
 		loginPost(w, r)
+	} else {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	}
+}
+
+func Logout(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		session, err := Store.Get(r, "auth-session")
+
+		if err != nil {
+			http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+			return
+		}
+
+		session.Options.MaxAge = -1
+
+		// Save the session to delete it
+		err = session.Save(r, w)
+		if err != nil {
+			http.Error(w, "Failed to delete session", http.StatusInternalServerError)
+			return
+		}
+
+		// Respond to the client
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("Logged out successfully"))
+
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
@@ -66,29 +93,30 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Println(username, password)
 
-	query := "SELECT id, username, secondary_id, password FROM user WHERE username = ?"
-	row := db.DB.QueryRow(query, username)
-
-	var user User
-	err := row.Scan(&user.ID, &user.Username, &user.SecondaryID, &user.Password)
+	var user db.User
+	// Find the user by username
+	err := db.DB.Where("username = ?", username).First(&user).Error
 	if err != nil {
-		if err == sql.ErrNoRows {
-			// No user found
+		if err == gorm.ErrRecordNotFound {
 			http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
 			return
 		}
-		// Other errors
 		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
 		return
 	}
 
 	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-
 	if err != nil {
 		http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
 		return
 	}
-	session, _ := Store.Get(r, "auth-session")
+
+	session, err := Store.Get(r, "auth-session")
+
+	if err != nil {
+		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+		return
+	}
 
 	session.Values["authenticated"] = true
 	session.Values["username"] = user.Username
@@ -112,6 +140,11 @@ func signupGet(w http.ResponseWriter, r *http.Request) {
 }
 
 func signupPost(w http.ResponseWriter, r *http.Request) {
+
+	if db.DB == nil {
+		http.Error(w, "Database connection not initialized", http.StatusInternalServerError)
+		return
+	}
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -140,25 +173,13 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	secondary_id := uuid.New()
 
-	stmt, err := db.DB.Prepare("INSERT INTO user (secondary_id, username, password) VALUES (?, ?, ?)")
-	if err != nil {
-		http.Error(w, "Database preparation error", http.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
+	user := db.User{Username: data.Username, Password: string(hashedPassword), SecondaryID: secondary_id.String()}
 
-	_, err = stmt.Exec(secondary_id, data.Username, string(hashedPassword))
+	err = db.DB.Create(&user).Error
 	if err != nil {
 		http.Error(w, "Database execution error", http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
-}
-
-type User struct {
-	ID          int    `json:"id"`
-	Username    string `json:"username"`
-	SecondaryID string `json:"secondary_id"`
-	Password    string `json:"password"`
 }
