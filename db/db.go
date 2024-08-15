@@ -1,6 +1,7 @@
 package db
 
 import (
+	"database/sql"
 	"log"
 
 	"gorm.io/driver/sqlite"
@@ -21,10 +22,10 @@ type User struct {
 // Connection model
 type Connection struct {
 	gorm.Model
-	SecondaryID string `gorm:"unique;not null"`
-	SendBy      uint   `gorm:"not null"`
-	SendTo      uint   `gorm:"not null"`
-	IsAccepted  bool
+	SecondaryID string       `gorm:"unique;not null"`
+	SendBy      uint         `gorm:"not null"`
+	SendTo      uint         `gorm:"not null"`
+	IsAccepted  sql.NullBool `gorm:"column:is_accepted"`
 }
 
 func InitializeDB(dataSourceName string) error {

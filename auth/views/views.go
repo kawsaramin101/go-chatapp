@@ -177,7 +177,7 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	err = db.DB.Create(&user).Error
 	if err != nil {
-		http.Error(w, "Database execution error", http.StatusInternalServerError)
+		http.Error(w, "Internel Server Error", http.StatusInternalServerError)
 		return
 	}
 

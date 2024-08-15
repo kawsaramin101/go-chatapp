@@ -98,7 +98,7 @@
                             if (response.ok) {
                                 const data = await response.json();
                                 // Handle the ID from the payload
-                                const userId = data.id;
+                                const userId = data.secondary_id;
                                 console.log("User ID:", userId);
                             } else if (response.status === 404) {
                                 alert("Username doesn't exist.");
