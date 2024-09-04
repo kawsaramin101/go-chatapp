@@ -1,25 +1,32 @@
-<script>
-    let username = "";
-    let password = "";
-    let error = "";
+<script lang="ts">
+    let username: string = "";
+    let password: string = "";
+    let error: string = "";
 
-    async function handleSubmit(event) {
+    const baseUrl: string = "http://localhost:8000";
+
+    async function handleSubmit(event: Event): Promise<void> {
         event.preventDefault();
         error = ""; // Clear any previous error
 
         try {
-            const response = await fetch("/login", {
+            const response: Response = await fetch(`${baseUrl}/login`, {
                 method: "POST",
                 headers: {
-                    "Content-Type": "application/x-www-form-urlencoded",
+                    "Content-Type": "application/json",
                 },
-                body: new URLSearchParams({ username, password }),
+                body: JSON.stringify({ username, password }),
             });
 
             if (response.status === 200) {
+                const result: { token: string; [key: string]: any } =
+                    await response.json();
+                const token: string = result.token;
+                localStorage.setItem("authToken", token);
                 window.location.href = "/";
             } else {
-                const result = await response.json();
+                const result: { message?: string; [key: string]: any } =
+                    await response.json();
                 error = result.message || "An error occurred";
             }
         } catch (err) {

@@ -35,6 +35,7 @@ func main() {
 	router.HandleFunc("/login", auth_views.Login)
 	router.HandleFunc("/logout", auth_views.Logout)
 	router.HandleFunc("/signup", auth_views.Signup)
+	router.Handle("/testRoute", auth_views.AuthMiddleware(http.HandlerFunc(auth_views.TestRoute)))
 	router.HandleFunc("/request-connection", chat_views.RequestConnection)
 	router.HandleFunc("/chat/{chatID}", chat_views.ChatBox)
 
@@ -54,11 +55,11 @@ func main() {
 		chat_views.ServeWs(hub, w, r)
 	})
 
-	loggedMux := LoggingMiddleware(router)
+	handlerWithMiddleware := LoggingMiddleware(CorsMiddleware(router))
 
 	fmt.Println("Listening to port 8000")
 
-	err = http.ListenAndServe(":8000", loggedMux)
+	err = http.ListenAndServe(":8000", handlerWithMiddleware)
 
 	if err != nil {
 		fmt.Println(err)
@@ -69,6 +70,21 @@ func main() {
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Method: %s, URL: %s", r.Method, r.URL)
+		next.ServeHTTP(w, r)
+	})
+}
+
+func CorsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
 }
