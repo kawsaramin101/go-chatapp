@@ -10,6 +10,8 @@ import (
 
 	// "chatapp/chat/hub"
 	"chatapp/db"
+
+	"github.com/gorilla/mux"
 )
 
 // Start app with `reflex -c reflex.conf`
@@ -25,17 +27,18 @@ func main() {
 		fmt.Println("Connected to database")
 	}
 
-	mux := http.NewServeMux()
+	router := mux.NewRouter()
 	hub := chat_views.NewHub()
 	go hub.Run()
 
-	mux.HandleFunc("/", chat_views.Index)
-	mux.HandleFunc("/login", auth_views.Login)
-	mux.HandleFunc("/logout", auth_views.Logout)
-	mux.HandleFunc("/signup", auth_views.Signup)
-	mux.HandleFunc("/request-connection", chat_views.RequestConnection)
+	router.HandleFunc("/", chat_views.Index)
+	router.HandleFunc("/login", auth_views.Login)
+	router.HandleFunc("/logout", auth_views.Logout)
+	router.HandleFunc("/signup", auth_views.Signup)
+	router.HandleFunc("/request-connection", chat_views.RequestConnection)
+	router.HandleFunc("/chat/{chatID}", chat_views.ChatBox)
 
-	mux.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		session, _ := auth_views.Store.Get(r, "auth-session")
 
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
@@ -51,7 +54,7 @@ func main() {
 		chat_views.ServeWs(hub, w, r)
 	})
 
-	loggedMux := LoggingMiddleware(mux)
+	loggedMux := LoggingMiddleware(router)
 
 	fmt.Println("Listening to port 8000")
 

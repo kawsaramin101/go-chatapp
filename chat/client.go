@@ -2,6 +2,8 @@ package chat
 
 import (
 	"bytes"
+	auth_views "chatapp/auth/views"
+	db "chatapp/db"
 	"log"
 	"net/http"
 	"time"
@@ -37,11 +39,26 @@ var upgrader = websocket.Upgrader{
 type Client struct {
 	hub *Hub
 
+	rooms map[*Room]bool
+
 	// The websocket connection.
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
 	send chan []byte
+
+	dbUserID          int
+	dbUserUsername    string
+	dbUserSecondaryID string
+}
+
+type Room struct {
+	hub *Hub
+
+	clients map[*Client]bool
+
+	dbRoomID          int
+	dbRoomSecondaryID string
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -121,16 +138,37 @@ func (c *Client) writePump() {
 
 // ServeWs handles websocket requests from the peer.
 func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
+	session, _ := auth_views.Store.Get(r, "auth-session")
+
+	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+		http.Redirect(w, r, "/login", http.StatusFound)
+		return
+	}
+
+	username := session.Values["username"].(string)
+	userID := session.Values["userID"].(int)
+	userSecondaryId := session.Values["userSecondaryId"].(string)
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), dbUserID: userID, dbUserUsername: username, dbUserSecondaryID: userSecondaryId}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
 	go client.writePump()
 	go client.readPump()
+}
+
+func getUserRoom(userID int) {
+	var userOne db.User
+	db.DB.First(&userOne, userID)
+
+	// Add users to the chat
+
+	db.DB.Preload("Chats").First(&userOne, userOne.ID)
+
 }

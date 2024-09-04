@@ -3,12 +3,10 @@ package chat
 import (
 	auth_views "chatapp/auth/views"
 	db "chatapp/db"
-	"fmt"
 	"html/template"
 	"net/http"
 
-	"github.com/google/uuid"
-	"gorm.io/gorm"
+	"github.com/gorilla/mux"
 )
 
 func Index(w http.ResponseWriter, r *http.Request) {
@@ -21,13 +19,22 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 
 	username := session.Values["username"].(string)
-	// userID := session.Values["userID"].(int)
+	userID := session.Values["userID"].(uint)
 	// userSecondaryId := session.Values["userSecondaryId"].(string)
+
+	var userOne db.User
+	db.DB.First(&userOne, userID)
+
+	// Add users to the chat
+
+	db.DB.Preload("Chats").First(&userOne, userOne.ID)
 
 	data := struct {
 		Username string
+		Chats    []db.Chat
 	}{
 		Username: username,
+		Chats:    userOne.Chats,
 	}
 
 	tmpl, err := template.ParseFiles("chat/templates/index.html")
@@ -41,85 +48,126 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func RequestConnection(w http.ResponseWriter, r *http.Request) {
-	session, _ := auth_views.Store.Get(r, "auth-session")
+func ChatBox(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	chatID := vars["chatID"]
 
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		fmt.Println("run")
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
+	data := struct {
+		ChatID string
+	}{
+		ChatID: chatID,
 	}
 
-	requestTo := r.FormValue("username")
 
-	var requestToUser db.User
-	// Find the user by username
-	err := db.DB.Where("username = ?", requestTo).First(&requestToUser).Error
+	tmpl, err := template.ParseFiles("chat/templates/chat.html")
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			// No user found
-			http.Error(w, `{"message": "User not found"}`, http.StatusNotFound)
-			return
-		}
-		// Other errors
-		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-
-	// requestFrom := session.Values["username"].(string)
-	requestFromID := session.Values["userID"].(uint)
-	// userSecondaryId := session.Values["userSecondaryId"].(string)
-	//
-	var connection db.Connection
-
-	// Query the entire row and scan it into the struct
-	result := db.DB.Table("connections").
-		Where("(send_by = ? AND send_to = ?) OR (send_by = ? AND send_to = ?)", requestFromID, requestToUser.ID, requestToUser.ID, requestFromID).
-		Scan(&connection)
-
-	// Check if any record was found
-	if result.Error != nil {
-		// Handle other types of errors (e.g., connection errors, SQL syntax errors)
-		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
-		return
+	err = tmpl.Execute(w, data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
 
-	if result.RowsAffected == 0 {
-		// No matching record found
-		// Proceed with creating a new connection
-		secondary_id := uuid.New()
-		newConnection := db.Connection{SendBy: uint(requestFromID), SendTo: requestToUser.ID, SecondaryID: secondary_id.String()}
+func RequestConnection(w http.ResponseWriter, r *http.Request) {
+	// session, _ := auth_views.Store.Get(r, "auth-session")
 
-		err := db.DB.Create(&newConnection).Error
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
+	// if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+	// 	http.Redirect(w, r, "/login", http.StatusFound)
+	// 	return
+	// }
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusCreated)
-		fmt.Fprintf(w, `{"secondary_id": "%s"}`, newConnection.SecondaryID)
-	} else {
-		// If no error occurred and a record was found, use the connection instance as needed
-		fmt.Println(connection)
-		if !connection.IsAccepted.Valid {
-			// is_accepted is null
-			fmt.Println("Run 1")
-			http.Error(w, `{"message": "Already request sent"}`, http.StatusConflict)
-			return
-		} else if connection.IsAccepted.Bool {
-			fmt.Println("Run 2")
+	// requestTo := r.FormValue("username")
 
-			// is_accepted is true
-			http.Error(w, `{"message": "Already connection created"}`, http.StatusConflict)
-			return
-		} else {
-			fmt.Println("Run 3")
+	// var requestToUser db.User
+	// // Find the user by username
+	// err := db.DB.Where("username = ?", requestTo).First(&requestToUser).Error
+	// if err != nil {
+	// 	if err == gorm.ErrRecordNotFound {
+	// 		// No user found
+	// 		http.Error(w, `{"message": "User not found"}`, http.StatusNotFound)
+	// 		return
+	// 	}
+	// 	// Other errors
+	// 	http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+	// 	return
+	// }
 
-			// is_accepted is false
-			http.Error(w, `{"message": "Connection request declined"}`, http.StatusConflict)
-			return
-		}
-	}
+	// // requestFrom := session.Values["username"].(string)
+	// requestFromID := session.Values["userID"].(uint)
+	// // userSecondaryId := session.Values["userSecondaryId"].(string)
+
+	// var requestFromUser db.User
+	// err = db.DB.First(&requestFromUser, requestFromID).Error
+	// if err != nil {
+	// 	if err == gorm.ErrRecordNotFound {
+	// 		// No user found
+	// 		http.Error(w, `{"message": "User not found"}`, http.StatusNotFound)
+	// 		return
+	// 	}
+	// 	// Other errors
+	// 	http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+	// 	return
+	// }
+	// var connection db.ConnectionRequest
+
+	// // Query the entire row and scan it into the struct
+	// result := db.DB.Where(
+	// 	"(send_by = ? AND send_to = ?) OR (send_by = ? AND send_to = ?)",
+	// 	requestFromUser, requestToUser, requestToUser, requestFromUser,
+	// ).Find(&connection)
+
+	// // Check if any record was found
+	// if result.Error != nil {
+	// 	// Handle other types of errors (e.g., connection errors, SQL syntax errors)
+	// 	http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// if result.RowsAffected == 0 {
+	// 	// No matching record found
+	// 	// Proceed with creating a new connection
+	// 	secondary_id := uuid.New()
+
+	// 	newChat := db.Chat{
+	// 		SecondaryID:   secondary_id.String(),
+	// 		IsPrivateChat: true,
+	// 	}
+
+	// 	err = db.DB.Create(&newChat).Error
+	// 	if err != nil {
+	// 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	// 		return
+	// 	}
+
+	// 	secondary_id = uuid.New()
+	// 	newConnection := db.ConnectionRequest{SendBy: requestFromUser, SendTo: requestToUser, SecondaryID: secondary_id.String()}
+
+	// 	err := db.DB.Create(&newConnection).Error
+	// 	if err != nil {
+	// 		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	// 		return
+	// 	}
+
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	w.WriteHeader(http.StatusCreated)
+	// 	fmt.Fprintf(w, `{"secondary_id": "%s"}`, newConnection.SecondaryID)
+	// } else {
+	// 	// If no error occurred and a record was found, use the connection instance as needed
+	// 	if !connection.IsAccepted.Valid {
+	// 		// is_accepted is null
+	// 		http.Error(w, `{"message": "Already request sent"}`, http.StatusConflict)
+	// 		return
+	// 	} else if connection.IsAccepted.Bool {
+	// 		// is_accepted is true
+	// 		http.Error(w, `{"message": "Already connection created"}`, http.StatusConflict)
+	// 		return
+	// 	} else {
+	// 		// is_accepted is false
+	// 		http.Error(w, `{"message": "Connection request declined"}`, http.StatusConflict)
+	// 		return
+	// 	}
+	// }
 
 }

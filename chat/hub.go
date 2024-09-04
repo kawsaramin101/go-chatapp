@@ -5,6 +5,7 @@ package chat
 type Hub struct {
 	// Registered clients.
 	clients map[*Client]bool
+	rooms   map[*Room]bool
 
 	// Inbound messages from the clients.
 	broadcast chan []byte

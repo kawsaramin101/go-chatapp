@@ -10,14 +10,40 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var Store = sessions.NewCookieStore([]byte("your-secret-key"))
+
+var mySigningKey = []byte("your-256-bit-secret")
+
+func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(payload)
+}
+
+func generateJWT(username string, userSecondadyId string) (string, error) {
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"username":        username,
+		"userSecondaryId": userSecondadyId,
+		"exp":             time.Now().Add(30 * 24 * time.Hour).Unix(),
+	})
+
+	tokenString, err := token.SignedString(mySigningKey)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
+}
 
 func Login(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
@@ -87,15 +113,28 @@ func loginGet(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
 func loginPost(w http.ResponseWriter, r *http.Request) {
-	username := r.FormValue("username")
-	password := r.FormValue("password")
+	var creds Credentials
+
+	// Decode the JSON request body into the Credentials struct
+	err := json.NewDecoder(r.Body).Decode(&creds)
+	if err != nil {
+		respondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "Error generating token"})
+		return
+	}
+	username := creds.Username
+	password := creds.Password
 
 	fmt.Println(username, password)
 
 	var user db.User
 	// Find the user by username
-	err := db.DB.Where("username = ?", username).First(&user).Error
+	err = db.DB.Where("username = ?", username).First(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			http.Error(w, `{"message": "Username or password didn't match"}`, http.StatusUnauthorized)
@@ -111,19 +150,23 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, err := Store.Get(r, "auth-session")
+	tokenString, err := generateJWT(user.Username, user.SecondaryID)
 
-	if err != nil {
-		http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
-		return
-	}
+	respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
 
-	session.Values["authenticated"] = true
-	session.Values["username"] = user.Username
-	session.Values["userID"] = user.ID
-	session.Values["userSecondaryId"] = user.SecondaryID
-	session.Save(r, w)
-	w.WriteHeader(http.StatusOK)
+	// session, err := Store.Get(r, "auth-session")
+
+	// if err != nil {
+	// 	http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
+	// 	return
+	// }
+
+	// session.Values["authenticated"] = true
+	// session.Values["username"] = user.Username
+	// session.Values["userID"] = user.ID
+	// session.Values["userSecondaryId"] = user.SecondaryID
+	// session.Save(r, w)
+	// w.WriteHeader(http.StatusOK)
 }
 
 func signupGet(w http.ResponseWriter, r *http.Request) {

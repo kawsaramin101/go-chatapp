@@ -12,20 +12,64 @@ var DB *gorm.DB
 
 type User struct {
 	gorm.Model
-	SecondaryID            string        `gorm:"unique;not null"`
-	Username               string        `gorm:"not null"`
-	Password               string        `gorm:"not null"`
-	ConnectionRequestsFrom []*Connection `gorm:"foreignKey:SendBy;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
-	ConnectionRequestsTo   []*Connection `gorm:"foreignKey:SendTo;references:ID;constraint:OnUpdate:CASCADE,OnDelete:SET NULL;"`
+	SecondaryID string `gorm:"unique;not null"`
+	Username    string `gorm:"not null"`
+	Password    string `gorm:"not null"`
+
+	// Back link to ConnectionRequest
+	SentRequests     []ConnectionRequest `gorm:"foreignKey:SendByID"`
+	ReceivedRequests []ConnectionRequest `gorm:"foreignKey:SendToID"`
+
+	// Back link to ChatMember
+	Chats []Chat `gorm:"many2many:chat_members;"`
 }
 
 // Connection model
-type Connection struct {
+type ConnectionRequest struct {
 	gorm.Model
-	SecondaryID string       `gorm:"unique;not null"`
-	SendBy      uint         `gorm:"not null"`
-	SendTo      uint         `gorm:"not null"`
-	IsAccepted  sql.NullBool `gorm:"column:is_accepted"`
+	SecondaryID string `gorm:"unique;not null"`
+
+	IsAccepted sql.NullBool `gorm:"column:is_accepted"`
+
+	// Foreign keys linking to User model
+	SendByID uint `gorm:"not null"`
+	SendBy   User `gorm:"foreignKey:SendByID"`
+
+	SendToID uint `gorm:"not null"`
+	SendTo   User `gorm:"foreignKey:SendToID"`
+
+	// Foreign key linking to Chat model
+	ChatID uint `gorm:"not null"`
+	Chat   Chat `gorm:"foreignKey:ChatID"`
+}
+
+type ChatMember struct {
+	gorm.Model
+	SecondaryID string `gorm:"unique;not null"`
+	Role        string `gorm:"type:enum('admin', 'user');default:'user';not null"`
+
+	// Foreign key linking to User model
+	UserID uint `gorm:"not null"`
+	User   User `gorm:"foreignKey:UserID"`
+
+	// Foreign key linking to Chat model
+	ChatID uint `gorm:"not null"`
+	Chat   Chat `gorm:"foreignKey:ChatID"`
+}
+
+type Chat struct {
+	gorm.Model
+	SecondaryID string `gorm:"unique;not null"`
+	Name        string
+
+	// If private chat only two people can join, else more than two
+	IsPrivateChat bool `gorm:"default:true"`
+
+	// Back link to ConnectionRequest
+	ConnectionRequests []ConnectionRequest `gorm:"foreignKey:ChatID"`
+
+	// Many-to-many relationship with User through ChatMember
+	Users []User `gorm:"many2many:chat_members;"`
 }
 
 func InitializeDB(dataSourceName string) error {
@@ -33,10 +77,10 @@ func InitializeDB(dataSourceName string) error {
 	var err error
 	DB, err = gorm.Open(sqlite.Open(dataSourceName), &gorm.Config{})
 	if err != nil {
-		panic("failed to connect database")
+		panic("Failed to connect to the database")
 	}
 
-	err = DB.AutoMigrate(&User{}, &Connection{})
+	err = DB.AutoMigrate(&User{}, &ConnectionRequest{}, &ChatMember{}, &Chat{})
 	if err != nil {
 		return err
 	}

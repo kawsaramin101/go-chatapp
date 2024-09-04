@@ -51,28 +51,10 @@
     </head>
     <body>
         <main>
-            <form id="connectionForm">
-                <input
-                    type="text"
-                    id="username"
-                    name="username"
-                    placeholder="Username"
-                />
-                <button type="submit">Request Connection</button>
-            </form>
             <form id="logoutForm">
                 <button type="submit">Logout</button>
             </form>
 
-            <ul>
-                {{range .Chats}}
-                <li>
-                    <a href="chat/{{ .SecondaryID}}">{{ .SecondaryID}}</a>
-                </li>
-                {{else}}
-                <li>No connections found.</li>
-                {{end}}
-            </ul>
             <div id="log"></div>
             <form id="form">
                 <input type="text" id="msg" size="64" autofocus />
@@ -81,46 +63,12 @@
         </main>
 
         <script>
+            const chatID = {{ .ChatID }};
+        </script>
+
+        <script>
             window.onload = function () {
-                const connectionForm =
-                    document.querySelector("#connectionForm");
-
-                connectionForm.addEventListener(
-                    "submit",
-                    async function (event) {
-                        event.preventDefault();
-
-                        try {
-                            const response = await fetch(
-                                "/request-connection",
-                                {
-                                    method: "POST",
-                                    headers: {
-                                        "Content-Type":
-                                            "application/x-www-form-urlencoded",
-                                    },
-                                    body: new URLSearchParams(
-                                        new FormData(connectionForm),
-                                    ),
-                                },
-                            );
-
-                            const data = await response.json();
-                            if (response.ok) {
-                                // Handle the ID from the payload
-                                const userId = data.secondary_id;
-                                console.log("User ID:", userId);
-                            } else if (response.status === 404) {
-                                alert("Username doesn't exist.");
-                            } else if (response.status === 409) {
-                                alert(data.message);
-                            }
-                        } catch (error) {
-                            console.error("Fetch error:", error);
-                        }
-                    },
-                );
-
+                console.log("ChatID:", chatID);
                 const logoutForm = document.querySelector("#logoutForm");
 
                 logoutForm.addEventListener("submit", (event) => {
