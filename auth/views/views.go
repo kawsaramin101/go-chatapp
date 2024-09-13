@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -125,7 +124,7 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	// Decode the JSON request body into the Credentials struct
 	err := json.NewDecoder(r.Body).Decode(&creds)
 	if err != nil {
-		respondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "Error generating token"})
+		respondWithJSON(w, http.StatusInternalServerError, map[string]string{"error": "Could not decode request body."})
 		return
 	}
 	username := creds.Username
@@ -155,19 +154,6 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 
 	respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
 
-	// session, err := Store.Get(r, "auth-session")
-
-	// if err != nil {
-	// 	http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
-	// 	return
-	// }
-
-	// session.Values["authenticated"] = true
-	// session.Values["username"] = user.Username
-	// session.Values["userID"] = user.ID
-	// session.Values["userSecondaryId"] = user.SecondaryID
-	// session.Save(r, w)
-	// w.WriteHeader(http.StatusOK)
 }
 
 func signupGet(w http.ResponseWriter, r *http.Request) {
@@ -183,6 +169,12 @@ func signupGet(w http.ResponseWriter, r *http.Request) {
 
 }
 
+type SignupRequestData struct {
+	username        string
+	password        string
+	confirmPassword string
+}
+
 func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	if db.DB == nil {
@@ -190,26 +182,21 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := io.ReadAll(r.Body)
+	var requestData SignupRequestData
+
+	// Decode the JSON request body into the Credentials struct
+	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
-		http.Error(w, "Unable to read request body", http.StatusBadRequest)
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "Could not decode request body."})
 		return
 	}
 
-	type RequestData struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
-	var data RequestData
-	err = json.Unmarshal(body, &data)
-
-	if err != nil {
-		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
+	if requestData.password != requestData.confirmPassword {
+		respondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "Password and confirm password do not match."})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(data.Password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestData.password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Error hashing password", http.StatusInternalServerError)
 		return
@@ -217,7 +204,7 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	secondary_id := uuid.New()
 
-	user := db.User{Username: data.Username, Password: string(hashedPassword), SecondaryID: secondary_id.String()}
+	user := db.User{Username: requestData.username, Password: string(hashedPassword), SecondaryID: secondary_id.String()}
 
 	err = db.DB.Create(&user).Error
 	if err != nil {
@@ -225,48 +212,56 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-}
-
-func TestRoute(w http.ResponseWriter, r *http.Request) {
-	username := r.Context().Value("username").(string)
-	userSecondaryId := r.Context().Value("userSecondaryId").(string)
-
-	fmt.Println(username, userSecondaryId)
-
+	respondWithJSON(w, http.StatusOK, map[string]string{"message": "User created"})
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Get the token from the Authorization header
 		tokenString := r.Header.Get("Authorization")
-		if tokenString == "" {
-			respondWithJSON(w, http.StatusForbidden, "No token provided")
+
+		// Validate the token and extract the username and secondary ID
+		username, userSecondaryId, err := ValidateToken(tokenString)
+		if err != nil {
+			respondWithJSON(w, http.StatusForbidden, err.Error())
 			return
 		}
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return mySigningKey, nil
-		})
+		// Store the extracted values in the request context
+		ctx := context.WithValue(r.Context(), "username", username)
+		ctx = context.WithValue(ctx, "userSecondaryId", userSecondaryId)
 
-		if err != nil || !token.Valid {
-			respondWithJSON(w, http.StatusForbidden, "Invalid token")
-			return
-		}
-
-		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
-			username := claims["username"].(string)
-			userSecondaryId := claims["userSecondaryId"].(string)
-			ctx := context.WithValue(r.Context(), "username", username)
-			ctx = context.WithValue(ctx, "userSecondaryId", userSecondaryId)
-			r = r.WithContext(ctx)
-		} else {
-			respondWithJSON(w, http.StatusForbidden, "Invalid token claims")
-			return
-		}
-
-		next.ServeHTTP(w, r)
+		// Pass the request to the next handler
+		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func ValidateToken(tokenString string) (string, string, error) {
+	if tokenString == "" {
+		return "", "", fmt.Errorf("no token provided")
+	}
+
+	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Ensure the signing method is HMAC
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return mySigningKey, nil // Replace with your actual key
+	})
+
+	if err != nil || !token.Valid {
+		return "", "", fmt.Errorf("invalid token: %v", err)
+	}
+
+	// Extract claims (username and userSecondaryId)
+	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		username, usernameOk := claims["username"].(string)
+		userSecondaryId, secondaryOk := claims["userSecondaryId"].(string)
+		if !usernameOk || !secondaryOk {
+			return "", "", fmt.Errorf("invalid token claims")
+		}
+		return username, userSecondaryId, nil
+	}
+
+	return "", "", fmt.Errorf("invalid token claims")
 }

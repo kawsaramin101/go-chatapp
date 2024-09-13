@@ -35,17 +35,10 @@ func main() {
 	router.HandleFunc("/login", auth_views.Login)
 	router.HandleFunc("/logout", auth_views.Logout)
 	router.HandleFunc("/signup", auth_views.Signup)
-	router.Handle("/testRoute", auth_views.AuthMiddleware(http.HandlerFunc(auth_views.TestRoute)))
 	router.HandleFunc("/request-connection", chat_views.RequestConnection)
 	router.HandleFunc("/chat/{chatID}", chat_views.ChatBox)
 
 	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		session, _ := auth_views.Store.Get(r, "auth-session")
-
-		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-			http.Redirect(w, r, "/login", http.StatusFound)
-			return
-		}
 
 		// username := session.Values["username"].(string)
 		// userID := session.Values["userID"].(int)

@@ -4,11 +4,14 @@ import (
 	"bytes"
 	auth_views "chatapp/auth/views"
 	db "chatapp/db"
+	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/gorilla/websocket"
+	"gorm.io/gorm"
 )
 
 const (
@@ -33,6 +36,9 @@ var (
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
 }
 
 // Client is a middleman between the websocket connection and the hub.
@@ -47,7 +53,7 @@ type Client struct {
 	// Buffered channel of outbound messages.
 	send chan []byte
 
-	dbUserID          int
+	dbUserID          uint
 	dbUserUsername    string
 	dbUserSecondaryID string
 }
@@ -57,8 +63,78 @@ type Room struct {
 
 	clients map[*Client]bool
 
-	dbRoomID          int
+	dbRoomID          uint
 	dbRoomSecondaryID string
+}
+
+func (c *Client) waitForAuth() {
+
+	c.conn.SetReadLimit(maxMessageSize)
+	c.conn.SetReadDeadline(time.Now().Add(pongWait))
+	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
+	for {
+		_, authToken, err := c.conn.ReadMessage()
+		if err != nil {
+			log.Printf("Error reading auth token: %v", err)
+			c.conn.Close()
+			return
+		}
+
+		authToken = bytes.TrimSpace(bytes.Replace(authToken, newline, space, -1))
+
+		_, userSecondaryId, err := auth_views.ValidateToken(string(authToken))
+
+		if err != nil {
+			log.Printf("Error validating auth token: %v", err)
+			c.conn.Close()
+			return
+		}
+
+		var user db.User
+
+		err = getUserAndRoomInfo(userSecondaryId, &user)
+
+		if err != nil {
+			log.Printf("Error finding the user info: %v", err)
+			c.conn.Close()
+			return
+		}
+
+		c.dbUserID = user.ID
+		c.dbUserUsername = user.Username
+		c.dbUserSecondaryID = user.SecondaryID
+
+		roomMap := make(map[uint]*Room)
+		for room := range c.hub.rooms {
+			roomMap[room.dbRoomID] = room
+		}
+
+		for _, roomToCheck := range user.Chats {
+			if existingRoom, exists := roomMap[roomToCheck.ID]; !exists {
+				c.rooms[existingRoom] = true
+				existingRoom.clients[c] = true
+
+			} else {
+				newRoom := Room{hub: c.hub, clients: make(map[*Client]bool), dbRoomID: roomToCheck.ID, dbRoomSecondaryID: roomToCheck.SecondaryID}
+				newRoom.clients[c] = true
+				c.rooms[&newRoom] = true
+			}
+		}
+
+		fmt.Println(user.Username)
+
+		go c.writePump()
+		go c.readPump()
+
+		return
+
+	}
+}
+
+type Message struct {
+	Action string `json:"action"`
+	Value  string `json:"value"`
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -74,6 +150,7 @@ func (c *Client) readPump() {
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+
 	for {
 		_, message, err := c.conn.ReadMessage()
 		if err != nil {
@@ -138,37 +215,34 @@ func (c *Client) writePump() {
 
 // ServeWs handles websocket requests from the peer.
 func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
-	session, _ := auth_views.Store.Get(r, "auth-session")
-
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
-
-	username := session.Values["username"].(string)
-	userID := session.Values["userID"].(int)
-	userSecondaryId := session.Values["userSecondaryId"].(string)
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256), dbUserID: userID, dbUserUsername: username, dbUserSecondaryID: userSecondaryId}
+	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in
 	// new goroutines.
-	go client.writePump()
-	go client.readPump()
+
+	go client.waitForAuth()
+
 }
 
-func getUserRoom(userID int) {
-	var userOne db.User
-	db.DB.First(&userOne, userID)
+func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
+	if err := db.DB.Where("SecondaryID = ?", userSecondaryId).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return err // No user found, return the error or handle it
+		}
+		return err // Other errors like DB connection failure, etc.
+	}
 
-	// Add users to the chat
+	// If user is found, preload Chats
+	if err := db.DB.Preload("Chats").First(&user, user.ID).Error; err != nil {
+		return err
+	}
 
-	db.DB.Preload("Chats").First(&userOne, userOne.ID)
-
+	return nil
 }
