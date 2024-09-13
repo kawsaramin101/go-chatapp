@@ -5,7 +5,6 @@ import (
 	auth_views "chatapp/auth/views"
 	db "chatapp/db"
 	"errors"
-	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -122,8 +121,6 @@ func (c *Client) waitForAuth() {
 			}
 		}
 
-		fmt.Println(user.Username)
-
 		go c.writePump()
 		go c.readPump()
 
@@ -232,7 +229,7 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
-	if err := db.DB.Where("SecondaryID = ?", userSecondaryId).First(&user).Error; err != nil {
+	if err := db.DB.Where("secondary_id = ?", userSecondaryId).First(&user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return err // No user found, return the error or handle it
 		}

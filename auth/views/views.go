@@ -130,8 +130,6 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 	username := creds.Username
 	password := creds.Password
 
-	fmt.Println(username, password)
-
 	var user db.User
 	// Find the user by username
 	err = db.DB.Where("username = ?", username).First(&user).Error
@@ -170,9 +168,9 @@ func signupGet(w http.ResponseWriter, r *http.Request) {
 }
 
 type SignupRequestData struct {
-	username        string
-	password        string
-	confirmPassword string
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
 }
 
 func signupPost(w http.ResponseWriter, r *http.Request) {
@@ -184,19 +182,18 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	var requestData SignupRequestData
 
-	// Decode the JSON request body into the Credentials struct
 	err := json.NewDecoder(r.Body).Decode(&requestData)
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "Could not decode request body."})
 		return
 	}
 
-	if requestData.password != requestData.confirmPassword {
+	if requestData.Password != requestData.ConfirmPassword {
 		respondWithJSON(w, http.StatusBadRequest, map[string]string{"error": "Password and confirm password do not match."})
 		return
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestData.password), bcrypt.DefaultCost)
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(requestData.Password), bcrypt.DefaultCost)
 	if err != nil {
 		http.Error(w, "Error hashing password", http.StatusInternalServerError)
 		return
@@ -204,7 +201,7 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 
 	secondary_id := uuid.New()
 
-	user := db.User{Username: requestData.username, Password: string(hashedPassword), SecondaryID: secondary_id.String()}
+	user := db.User{Username: requestData.Username, Password: string(hashedPassword), SecondaryID: secondary_id.String()}
 
 	err = db.DB.Create(&user).Error
 	if err != nil {
