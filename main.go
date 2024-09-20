@@ -40,11 +40,6 @@ func main() {
 
 	router.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 
-		// username := session.Values["username"].(string)
-		// userID := session.Values["userID"].(int)
-		// userSecondaryId := session.Values["userSecondaryId"].(string)
-
-		// fmt.Printf("%v %v %v", username, userID, userSecondaryId)
 		chat_views.ServeWs(hub, w, r)
 	})
 

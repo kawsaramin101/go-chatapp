@@ -12,9 +12,9 @@ var DB *gorm.DB
 
 type User struct {
 	gorm.Model
-	SecondaryID string `gorm:"unique;not null"`
-	Username    string `gorm:"not null"`
-	Password    string `gorm:"not null"`
+	SecondaryID string `gorm:"unique;not null" json:"secondary_id"`
+	Username    string `gorm:"not null" json:"username"`
+	Password    string `gorm:"not null" json:"-"`
 
 	// Back link to ConnectionRequest
 	SentRequests     []ConnectionRequest `gorm:"foreignKey:SendByID"`

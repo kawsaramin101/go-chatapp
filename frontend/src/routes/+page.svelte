@@ -1,8 +1,12 @@
 <script>
+    import { getContext } from "svelte";
+
+    // Get the function from +layout.svelte
+    const addUser = getContext("addUser");
 </script>
 
-<h1>Welcome to SvelteKit</h1>
-<p>
-    Visit <a href="https://kit.svelte.dev">kit.svelte.dev</a> to read the documentation
-</p>
+<form on:submit={addUser}>
+    <input type="text" name="username" placeholder="Username" />
+    <button type="submit">GO</button>
+</form>
 <a href="/login">Login</a>

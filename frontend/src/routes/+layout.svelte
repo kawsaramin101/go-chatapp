@@ -1,15 +1,64 @@
+<script context="module">
+</script>
+
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/stores";
+    import { setContext } from "svelte";
 
     const baseUrl: string = "localhost:8000";
 
     let currentRoute: string;
 
-    var connection: WebSocket = new WebSocket("ws://" + baseUrl + "/ws");
+    let connection: WebSocket;
+
+    function connectWebSocket() {
+        connection = new WebSocket("ws://" + baseUrl + "/ws");
+
+        connection.onopen = function () {
+            console.log("WebSocket connection established successfully.");
+            const authToken = localStorage.getItem("authToken") || "";
+            connection.send(authToken);
+
+            const data = {
+                action: "BROADCAST",
+                data: {
+                    message: "Hello world",
+                },
+            };
+
+            connection.send(JSON.stringify(data));
+        };
+
+        connection.onmessage = function (event) {
+            console.log(event.data);
+            const data = JSON.parse(event.data);
+            if (
+                data["action"] === "ERROR_USER_NOT_FOUND" ||
+                data["action"] === "ERROR_SERVER_ERROR" ||
+                data["action"] === "ERROR_INVALID_PAYLOAD"
+            ) {
+                alert(data["message"]);
+            }
+        };
+
+        connection.onclose = function (event) {
+            console.log("Websocket connection closed", event);
+            let retry: boolean = true;
+            if (retry && !event.wasClean) {
+                setTimeout(function () {
+                    connectWebSocket();
+                }, 4000); // Retry after 5 seconds
+            }
+            // var item = document.createElement("div");
+            // item.innerHTML = "<b>Connection closed.</b>";
+            // appendLog(item);
+        };
+    }
 
     onMount(() => {
         // conn = new WebSocket("ws://" + baseUrl + "/ws");
+        connectWebSocket();
 
         if (currentRoute !== "/login" && currentRoute !== "/signup") {
         }
@@ -18,18 +67,22 @@
         document.body.classList.add("js-enabled");
     });
 
-    connection.onopen = function () {
-        const authToken = localStorage.getItem("authToken") || "";
-        connection.send(authToken);
-        console.log("WebSocket connection established successfully.");
-    };
+    export function addUser(event: SubmitEvent) {
+        event.preventDefault();
 
-    connection.onclose = function (evt) {
-        console.log("Websocket connection closed");
-        // var item = document.createElement("div");
-        // item.innerHTML = "<b>Connection closed.</b>";
-        // appendLog(item);
-    };
+        const formData = new FormData(event.target as HTMLFormElement);
+
+        const sendingData = {
+            action: "CREATECHAT",
+            data: {
+                username: formData.get("username"),
+            },
+        };
+
+        connection.send(JSON.stringify(sendingData));
+    }
+
+    setContext("addUser", addUser);
 
     // Subscribe to the page store to know when the route changes
     $: {

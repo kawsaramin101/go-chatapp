@@ -48,6 +48,10 @@ func Index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getChats(w http.ResponseWriter, r *http.Request) {
+
+}
+
 func ChatBox(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	chatID := vars["chatID"]
@@ -57,7 +61,6 @@ func ChatBox(w http.ResponseWriter, r *http.Request) {
 	}{
 		ChatID: chatID,
 	}
-
 
 	tmpl, err := template.ParseFiles("chat/templates/chat.html")
 	if err != nil {

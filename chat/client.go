@@ -4,6 +4,7 @@ import (
 	"bytes"
 	auth_views "chatapp/auth/views"
 	db "chatapp/db"
+	"encoding/json"
 	"errors"
 	"log"
 	"net/http"
@@ -52,9 +53,7 @@ type Client struct {
 	// Buffered channel of outbound messages.
 	send chan []byte
 
-	dbUserID          uint
-	dbUserUsername    string
-	dbUserSecondaryID string
+	dbUser db.User
 }
 
 type Room struct {
@@ -67,7 +66,11 @@ type Room struct {
 }
 
 func (c *Client) waitForAuth() {
+	// defer func() {
 
+	// 	c.hub.unregister <- c
+	// 	c.conn.Close()
+	// }()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -100,9 +103,7 @@ func (c *Client) waitForAuth() {
 			return
 		}
 
-		c.dbUserID = user.ID
-		c.dbUserUsername = user.Username
-		c.dbUserSecondaryID = user.SecondaryID
+		c.dbUser = user
 
 		roomMap := make(map[uint]*Room)
 		for room := range c.hub.rooms {
@@ -121,6 +122,10 @@ func (c *Client) waitForAuth() {
 			}
 		}
 
+		// fmt.
+
+		// c.send <-
+
 		go c.writePump()
 		go c.readPump()
 
@@ -130,8 +135,8 @@ func (c *Client) waitForAuth() {
 }
 
 type Message struct {
-	Action string `json:"action"`
-	Value  string `json:"value"`
+	Action string                 `json:"action"`
+	Data   map[string]interface{} `json:"data"` // Generic to allow varying structures
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -142,11 +147,19 @@ type Message struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		for room := range c.rooms {
+			delete(room.clients, c)
+			delete(c.rooms, room)
+		}
+
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
-	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+	c.conn.SetPongHandler(func(string) error {
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		return nil
+	})
 
 	for {
 		_, message, err := c.conn.ReadMessage()
@@ -154,11 +167,36 @@ func (c *Client) readPump() {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
 			}
+			log.Printf("%s", err)
 			break
 		}
 		message = bytes.TrimSpace(bytes.Replace(message, newline, space, -1))
-		log.Printf("Received: %s", message)
-		c.hub.broadcast <- message
+
+		// Define an instance of the Message struct
+		var msg Message
+
+		// Unmarshal the JSON data into the msg struct
+		err = json.Unmarshal(message, &msg)
+		if err != nil {
+			log.Printf("error unmarshaling JSON: %v", err)
+			continue
+		}
+
+		if msg.Action == "BROADCAST" {
+			// if msgText, ok := msg.Data["message"].(string); ok {
+			// 	// c.hub.broadcast <- []byte(msgText)
+			// 	// log.Printf("Message: %s", msgText)
+			// }
+			// continue
+
+		}
+
+		if msg.Action == "CREATECHAT" {
+			CreateChat(msg, c)
+			continue
+		}
+		// fmt.Println(msg)
+
 	}
 }
 
@@ -170,8 +208,10 @@ func (c *Client) readPump() {
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		ticker.Stop()
-		c.conn.Close()
+		// fmt.Println("writepump")
+		// ticker.Stop()
+		// c.conn.Close()
+		// fmt.Println("ran")
 	}()
 	for {
 		select {
