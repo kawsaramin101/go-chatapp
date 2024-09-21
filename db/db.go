@@ -59,17 +59,18 @@ type ChatMember struct {
 
 type Chat struct {
 	gorm.Model
-	SecondaryID string `gorm:"unique;not null"`
-	Name        string
+	SecondaryID string `gorm:"unique;not null" json:"secondary_id"`
+
+	Name string ` json:"name"`
 
 	// If private chat only two people can join, else more than two
-	IsPrivateChat bool `gorm:"default:true"`
+	IsPrivateChat bool `gorm:"default:true" json:"is_private_chat"`
 
 	// Back link to ConnectionRequest
 	ConnectionRequests []ConnectionRequest `gorm:"foreignKey:ChatID"`
 
 	// Many-to-many relationship with User through ChatMember
-	Users []User `gorm:"many2many:chat_members;"`
+	Users []User `gorm:"many2many:chat_members;" json:"users"`
 }
 
 func InitializeDB(dataSourceName string) error {

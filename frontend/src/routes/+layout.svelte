@@ -39,6 +39,10 @@
                 data["action"] === "ERROR_INVALID_PAYLOAD"
             ) {
                 alert(data["message"]);
+            } else if (data["action"] === "CHAT_CREATED") {
+                alert("Chat created");
+                setTimeout(() => {}, 3000);
+            } else if (data["action"] === "INITIAL_DATA") {
             }
         };
 

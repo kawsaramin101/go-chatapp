@@ -66,11 +66,7 @@ type Room struct {
 }
 
 func (c *Client) waitForAuth() {
-	// defer func() {
 
-	// 	c.hub.unregister <- c
-	// 	c.conn.Close()
-	// }()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
 	c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
@@ -111,16 +107,48 @@ func (c *Client) waitForAuth() {
 		}
 
 		for _, roomToCheck := range user.Chats {
-			if existingRoom, exists := roomMap[roomToCheck.ID]; !exists {
+			if existingRoom, exists := roomMap[roomToCheck.ID]; exists {
 				c.rooms[existingRoom] = true
+				if existingRoom.clients == nil {
+					existingRoom.clients = make(map[*Client]bool)
+				}
 				existingRoom.clients[c] = true
 
 			} else {
-				newRoom := Room{hub: c.hub, clients: make(map[*Client]bool), dbRoomID: roomToCheck.ID, dbRoomSecondaryID: roomToCheck.SecondaryID}
+				newRoom := Room{
+					hub:               c.hub,
+					clients:           make(map[*Client]bool),
+					dbRoomID:          roomToCheck.ID,
+					dbRoomSecondaryID: roomToCheck.SecondaryID}
 				newRoom.clients[c] = true
 				c.rooms[&newRoom] = true
 			}
 		}
+
+		for i, chat := range c.dbUser.Chats {
+			// Preload the users for the current chat
+			if err := db.DB.Preload("Users").Find(&c.dbUser.Chats[i], chat.ID).Error; err != nil {
+				// Handle error if loading users fails for a chat
+				response := map[string]string{
+					"action":  "ERROR_LOADING_CHAT_USERS",
+					"message": "Error loading users for chat",
+				}
+				jsonData, _ := json.Marshal(response)
+				c.send <- jsonData
+				return
+			}
+		}
+
+		initialData := map[string]interface{}{
+			"action": "INITIAL_DATA",
+			"data": map[string]interface{}{
+				"chats": user.Chats,
+			},
+		}
+
+		jsonData, err := json.Marshal(initialData)
+
+		c.send <- jsonData
 
 		// fmt.
 
@@ -258,7 +286,12 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	client := &Client{hub: hub, conn: conn, send: make(chan []byte, 256)}
+	client := &Client{
+		hub:   hub,
+		conn:  conn,
+		send:  make(chan []byte, 256),
+		rooms: make(map[*Room]bool),
+	}
 	client.hub.register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

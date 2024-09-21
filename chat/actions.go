@@ -41,10 +41,12 @@ func CreateChat(msg Message, c *Client) {
 				{SecondaryID: uuid.New().String(), Role: "user", UserID: anotherUser.ID, ChatID: newChat.ID},
 			}
 
-			db.DB.Create(chatMembers)
+			db.DB.Create(&chatMembers)
 
-			newChat.Users = append(newChat.Users, c.dbUser)
-			newChat.Users = append(newChat.Users, anotherUser)
+			db.DB.Model(&newChat).Association("Users").Append(&c.dbUser, &anotherUser)
+
+			db.DB.Model(&c.dbUser).Association("Chats").Append(&newChat)
+			db.DB.Model(&anotherUser).Association("Chats").Append(&newChat)
 
 			data := map[string]interface{}{
 				"action": "CHAT_CREATED",
