@@ -1,17 +1,20 @@
 // src/stores/websocket.ts
 import { writable } from "svelte/store";
 import type { Writable } from "svelte/store";
+import { chats } from "$lib/stores/chats";
 
 interface WebSocketStore {
     subscribe: Writable<WebSocket | null>["subscribe"];
-    get: () => WebSocket | null; // Return null if WebSocket is not initialized
+    get: () => WebSocket; // Return null if WebSocket is not initialized
     close: () => void;
+    set: () => void;
 }
 
 let websocketInstance: WebSocket | null = null;
 
 const createWebSocket = (): WebSocket => {
-    const ws = new WebSocket("ws://your-websocket-url");
+    const baseUrl: string = "localhost:8000";
+    const ws = new WebSocket("ws://" + baseUrl + "/ws");
 
     ws.onopen = function () {
         console.log("WebSocket connection established successfully.");
@@ -20,7 +23,30 @@ const createWebSocket = (): WebSocket => {
     };
 
     ws.onmessage = (event: MessageEvent) => {
-        console.log("Message received:", event.data);
+        console.log(event.data);
+        const data = JSON.parse(event.data);
+        switch (data["action"]) {
+            case "ERROR_USER_NOT_FOUND":
+            case "ERROR_SERVER_ERROR":
+            case "ERROR_INVALID_PAYLOAD":
+                alert(data["message"]);
+                break;
+
+            case "CHAT_CREATED":
+                alert("Chat created");
+                setTimeout(() => {}, 3000);
+                break;
+
+            case "INITIAL_DATA":
+                chats.setChats(data["data"]["chats"]);
+                break;
+
+            case "MESSAGE":
+
+            default:
+                // Handle any other actions if needed
+                break;
+        }
     };
 
     ws.onclose = function (event) {
@@ -40,11 +66,12 @@ const createWebSocket = (): WebSocket => {
 const websocketStore = (() => {
     const { subscribe, set }: Writable<WebSocket | null> = writable(null);
 
-    const get = (): WebSocket | null => {
+    const get = (): WebSocket => {
         if (
             websocketInstance === null ||
             websocketInstance.readyState === WebSocket.CLOSED
         ) {
+            console.log("run");
             websocketInstance = createWebSocket(); // Create a new WebSocket if none exists
             set(websocketInstance); // Update the store
         }

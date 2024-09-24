@@ -1,9 +1,30 @@
-<script>
-    import { getContext } from "svelte";
+<script lang="ts">
+    import { getContext, onMount } from "svelte";
     import { chats } from "$lib/stores/chats";
+    import { websocket } from "$lib/stores/ws";
 
-    // Get the function from +layout.svelte
-    const addUser = getContext("addUser");
+    let connection: WebSocket;
+
+    onMount(() => {
+        connection = websocket.get();
+    });
+
+    function addUser(event: SubmitEvent) {
+        connection = websocket.get();
+        event.preventDefault();
+
+        const formData = new FormData(event.target as HTMLFormElement);
+
+        const sendingData = {
+            action: "CREATECHAT",
+            data: {
+                username: formData.get("username"),
+            },
+        };
+        if (connection !== null) {
+            connection.send(JSON.stringify(sendingData));
+        }
+    }
 </script>
 
 <form on:submit={addUser}>

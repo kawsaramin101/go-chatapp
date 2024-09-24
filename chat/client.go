@@ -6,6 +6,7 @@ import (
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -131,7 +132,7 @@ func (c *Client) waitForAuth() {
 					dbRoomSecondaryID: roomToCheck.SecondaryID}
 				newRoom.clients[c] = true
 				c.rooms[&newRoom] = true
-				go newRoom.Run()
+				go newRoom.RunRoom()
 			}
 		}
 
@@ -159,10 +160,6 @@ func (c *Client) waitForAuth() {
 		jsonData, err := json.Marshal(initialData)
 
 		c.send <- jsonData
-
-		// fmt.
-
-		// c.send <-
 
 		go c.writePump()
 		go c.readPump()
@@ -212,9 +209,10 @@ func (c *Client) readPump() {
 
 		// Define an instance of the Message struct
 		var msg Message
-
 		// Unmarshal the JSON data into the msg struct
 		err = json.Unmarshal(message, &msg)
+		fmt.Println("run", msg)
+
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
 			continue
@@ -312,7 +310,9 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (r *Room) Run() {
+func (r *Room) RunRoom() {
+	fmt.Println(r.dbRoomID)
+
 	for {
 		select {
 		case client := <-r.register:
@@ -323,6 +323,7 @@ func (r *Room) Run() {
 				close(client.send)
 			}
 		case message := <-r.broadcast:
+			fmt.Println(message)
 			for client := range r.clients {
 				client.send <- message
 			}

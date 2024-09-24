@@ -75,7 +75,6 @@ func CreateChat(msg *Message, c *Client) {
 }
 
 func HandleMessage(msg *Message, c *Client) {
-	fmt.Println(msg.Data)
 	chatId, ok := msg.Data["chatId"].(float64)
 	message, ok := msg.Data["message"].(string)
 
@@ -84,7 +83,6 @@ func HandleMessage(msg *Message, c *Client) {
 	if ok {
 		found := false
 		var currentRoom *Room
-		fmt.Println(chatId)
 		for room := range c.rooms {
 			if room.dbRoomID == uint(chatId) {
 				currentRoom = room
@@ -104,7 +102,8 @@ func HandleMessage(msg *Message, c *Client) {
 				},
 			}
 			encodedData, _ := json.Marshal(data)
-
+			fmt.Println(
+				currentRoom.dbRoomID)
 			currentRoom.broadcast <- encodedData
 			return
 		} else {

@@ -1,118 +1,118 @@
 <script lang="ts">
-    import { onMount } from "svelte";
-    import { page } from "$app/stores";
-    import { setContext } from "svelte";
-    import { chats } from "$lib/stores/chats";
+    // import { onMount } from "svelte";
+    // import { page } from "$app/stores";
+    // import { setContext } from "svelte";
+    // import { chats } from "$lib/stores/chats";
 
-    const baseUrl: string = "localhost:8000";
+    // const baseUrl: string = "localhost:8000";
 
-    let currentRoute: string;
+    // let currentRoute: string;
 
-    let connection: WebSocket;
+    // let connection: WebSocket;
 
-    function connectWebSocket() {
-        connection = new WebSocket("ws://" + baseUrl + "/ws");
+    // function connectWebSocket() {
+    //     connection = new WebSocket("ws://" + baseUrl + "/ws");
 
-        connection.onopen = function () {
-            console.log("WebSocket connection established successfully.");
-            const authToken = localStorage.getItem("authToken") || "";
-            connection.send(authToken);
+    //     connection.onopen = function () {
+    //         console.log("WebSocket connection established successfully.");
+    //         const authToken = localStorage.getItem("authToken") || "";
+    //         connection.send(authToken);
 
-            const data = {
-                action: "BROADCAST",
-                data: {
-                    message: "Hello world",
-                },
-            };
+    //         const data = {
+    //             action: "BROADCAST",
+    //             data: {
+    //                 message: "Hello world",
+    //             },
+    //         };
 
-            connection.send(JSON.stringify(data));
-        };
+    //         connection.send(JSON.stringify(data));
+    //     };
 
-        connection.onmessage = function (event) {
-            console.log(event.data);
-            const data = JSON.parse(event.data);
-            switch (data["action"]) {
-                case "ERROR_USER_NOT_FOUND":
-                case "ERROR_SERVER_ERROR":
-                case "ERROR_INVALID_PAYLOAD":
-                    alert(data["message"]);
-                    break;
+    //     connection.onmessage = function (event) {
+    //         console.log(event.data);
+    //         const data = JSON.parse(event.data);
+    //         switch (data["action"]) {
+    //             case "ERROR_USER_NOT_FOUND":
+    //             case "ERROR_SERVER_ERROR":
+    //             case "ERROR_INVALID_PAYLOAD":
+    //                 alert(data["message"]);
+    //                 break;
 
-                case "CHAT_CREATED":
-                    alert("Chat created");
-                    setTimeout(() => {}, 3000);
-                    break;
+    //             case "CHAT_CREATED":
+    //                 alert("Chat created");
+    //                 setTimeout(() => {}, 3000);
+    //                 break;
 
-                case "INITIAL_DATA":
-                    chats.setChats(data["data"]["chats"]);
-                    break;
+    //             case "INITIAL_DATA":
+    //                 chats.setChats(data["data"]["chats"]);
+    //                 break;
 
-                case "MESSAGE":
+    //             case "MESSAGE":
 
-                default:
-                    // Handle any other actions if needed
-                    break;
-            }
-        };
+    //             default:
+    //                 // Handle any other actions if needed
+    //                 break;
+    //         }
+    //     };
 
-        connection.onclose = function (event) {
-            console.log("Websocket connection closed", event);
-            let retry: boolean = true;
-            if (retry && !event.wasClean) {
-                setTimeout(function () {
-                    connectWebSocket();
-                }, 4000); // Retry after 5 seconds
-            }
-            // var item = document.createElement("div");
-            // item.innerHTML = "<b>Connection closed.</b>";
-            // appendLog(item);
-        };
-    }
+    //     connection.onclose = function (event) {
+    //         console.log("Websocket connection closed", event);
+    //         let retry: boolean = true;
+    //         if (retry && !event.wasClean) {
+    //             setTimeout(function () {
+    //                 connectWebSocket();
+    //             }, 4000); // Retry after 5 seconds
+    //         }
+    //         // var item = document.createElement("div");
+    //         // item.innerHTML = "<b>Connection closed.</b>";
+    //         // appendLog(item);
+    //     };
+    // }
 
-    onMount(() => {
-        // conn = new WebSocket("ws://" + baseUrl + "/ws");
-        connectWebSocket();
-        setContext("connection", connection);
+    // onMount(() => {
+    //     // conn = new WebSocket("ws://" + baseUrl + "/ws");
+    //     connectWebSocket();
+    //     setContext("connection", connection);
 
-        if (currentRoute !== "/login" && currentRoute !== "/signup") {
-        }
-        console.log("This code runs on all routes");
-    });
+    //     if (currentRoute !== "/login" && currentRoute !== "/signup") {
+    //     }
+    //     console.log("This code runs on all routes");
+    // });
 
-    export function addUser(event: SubmitEvent) {
-        event.preventDefault();
+    // export function addUser(event: SubmitEvent) {
+    //     event.preventDefault();
 
-        const formData = new FormData(event.target as HTMLFormElement);
+    //     const formData = new FormData(event.target as HTMLFormElement);
 
-        const sendingData = {
-            action: "CREATECHAT",
-            data: {
-                username: formData.get("username"),
-            },
-        };
+    //     const sendingData = {
+    //         action: "CREATECHAT",
+    //         data: {
+    //             username: formData.get("username"),
+    //         },
+    //     };
 
-        connection.send(JSON.stringify(sendingData));
-    }
+    //     connection.send(JSON.stringify(sendingData));
+    // }
 
-    function sendMessage(chatId: number, message: string) {
-        const sendingData = {
-            action: "MESSAGE",
-            data: {
-                chatId: chatId,
-                message: message,
-            },
-        };
-        connection.send(JSON.stringify(sendingData));
-    }
+    // function sendMessage(chatId: number, message: string) {
+    //     const sendingData = {
+    //         action: "MESSAGE",
+    //         data: {
+    //             chatId: chatId,
+    //             message: message,
+    //         },
+    //     };
+    //     connection.send(JSON.stringify(sendingData));
+    // }
 
-    setContext("addUser", addUser);
-    setContext("sendMessage", sendMessage);
+    // setContext("addUser", addUser);
+    // setContext("sendMessage", sendMessage);
 
-    // Subscribe to the page store to know when the route changes
-    $: {
-        currentRoute = $page.url.pathname;
-        console.log("Current route:", currentRoute);
-    }
+    // // Subscribe to the page store to know when the route changes
+    // $: {
+    //     currentRoute = $page.url.pathname;
+    //     console.log("Current route:", currentRoute);
+    // }
 </script>
 
 <slot />

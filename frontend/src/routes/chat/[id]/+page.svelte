@@ -1,33 +1,25 @@
 <script lang="ts">
     import { getContext, onMount } from "svelte";
     import { page } from "$app/stores";
-
-    type SendMessageFunction = (chatId: number, message: string) => void;
+    import { websocket } from "$lib/stores/ws";
 
     type Message = {
         message: string;
         from: string;
     };
 
-    const sendMessage = getContext<SendMessageFunction>("sendMessage");
-
     let messages: Message[] = [];
     let message: string = "";
     let chatContainer;
+    let connection: WebSocket;
 
     $: chatId = Number($page.params.id);
 
-    function handleSendMessage(event: SubmitEvent) {
-        event.preventDefault();
-        console.log(chatId);
-        sendMessage(chatId, message);
-    }
-
     onMount(() => {
-        const connection = getContext<WebSocket>("connection");
+        connection = websocket.get();
 
         connection.onmessage = function (event) {
-            console.log("ranb");
+            console.log("run");
             const data = JSON.parse(event.data);
             switch (data["action"]) {
                 case "MESSAGE":
@@ -42,6 +34,19 @@
             }
         };
     });
+
+    function handleSendMessage(event: SubmitEvent) {
+        connection = websocket.get();
+        event.preventDefault();
+        const sendingData = {
+            action: "MESSAGE",
+            data: {
+                chatId: chatId,
+                message: message,
+            },
+        };
+        connection.send(JSON.stringify(sendingData));
+    }
 </script>
 
 <div class="chat-container" bind:this={chatContainer}>
