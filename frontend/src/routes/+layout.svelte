@@ -1,10 +1,8 @@
-<script context="module">
-</script>
-
 <script lang="ts">
     import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { setContext } from "svelte";
+    import { chats } from "$lib/stores/chats";
 
     const baseUrl: string = "localhost:8000";
 
@@ -33,16 +31,27 @@
         connection.onmessage = function (event) {
             console.log(event.data);
             const data = JSON.parse(event.data);
-            if (
-                data["action"] === "ERROR_USER_NOT_FOUND" ||
-                data["action"] === "ERROR_SERVER_ERROR" ||
-                data["action"] === "ERROR_INVALID_PAYLOAD"
-            ) {
-                alert(data["message"]);
-            } else if (data["action"] === "CHAT_CREATED") {
-                alert("Chat created");
-                setTimeout(() => {}, 3000);
-            } else if (data["action"] === "INITIAL_DATA") {
+            switch (data["action"]) {
+                case "ERROR_USER_NOT_FOUND":
+                case "ERROR_SERVER_ERROR":
+                case "ERROR_INVALID_PAYLOAD":
+                    alert(data["message"]);
+                    break;
+
+                case "CHAT_CREATED":
+                    alert("Chat created");
+                    setTimeout(() => {}, 3000);
+                    break;
+
+                case "INITIAL_DATA":
+                    chats.setChats(data["data"]["chats"]);
+                    break;
+
+                case "MESSAGE":
+
+                default:
+                    // Handle any other actions if needed
+                    break;
             }
         };
 
@@ -63,12 +72,11 @@
     onMount(() => {
         // conn = new WebSocket("ws://" + baseUrl + "/ws");
         connectWebSocket();
+        setContext("connection", connection);
 
         if (currentRoute !== "/login" && currentRoute !== "/signup") {
         }
         console.log("This code runs on all routes");
-
-        document.body.classList.add("js-enabled");
     });
 
     export function addUser(event: SubmitEvent) {
@@ -86,14 +94,24 @@
         connection.send(JSON.stringify(sendingData));
     }
 
+    function sendMessage(chatId: number, message: string) {
+        const sendingData = {
+            action: "MESSAGE",
+            data: {
+                chatId: chatId,
+                message: message,
+            },
+        };
+        connection.send(JSON.stringify(sendingData));
+    }
+
     setContext("addUser", addUser);
+    setContext("sendMessage", sendMessage);
 
     // Subscribe to the page store to know when the route changes
     $: {
         currentRoute = $page.url.pathname;
         console.log("Current route:", currentRoute);
-
-        // You can add more code here that should run on every route change
     }
 </script>
 

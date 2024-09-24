@@ -4,12 +4,13 @@ import (
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
-func CreateChat(msg Message, c *Client) {
+func CreateChat(msg *Message, c *Client) {
 	if anotherUserUsername, ok := msg.Data["username"].(string); ok {
 		var anotherUser db.User
 
@@ -70,5 +71,53 @@ func CreateChat(msg Message, c *Client) {
 
 		c.send <- enCodedData
 	}
+
+}
+
+func HandleMessage(msg *Message, c *Client) {
+	fmt.Println(msg.Data)
+	chatId, ok := msg.Data["chatId"].(float64)
+	message, ok := msg.Data["message"].(string)
+
+	errorData := make(map[string]interface{})
+
+	if ok {
+		found := false
+		var currentRoom *Room
+		fmt.Println(chatId)
+		for room := range c.rooms {
+			if room.dbRoomID == uint(chatId) {
+				currentRoom = room
+				found = true
+				break
+			}
+		}
+
+		if found {
+			data := map[string]interface{}{
+				"action": "MESSAGE",
+				"data": map[string]interface{}{
+					"chatId":          currentRoom.dbRoomID,
+					"chatSecondaryId": currentRoom.dbRoomSecondaryID,
+					"message":         message,
+					"from":            c.dbUser.Username,
+				},
+			}
+			encodedData, _ := json.Marshal(data)
+
+			currentRoom.broadcast <- encodedData
+			return
+		} else {
+			errorData["action"] = "ERROR_USER_NOT_IN_THE_ROOM"
+			errorData["message"] = "User is not in the room."
+
+		}
+	} else {
+		errorData["action"] = "ERROR_INVALID_PAYLOAD"
+		errorData["message"] = "ChatId or message not provided"
+	}
+	encodedData, _ := json.Marshal(errorData)
+
+	c.send <- encodedData
 
 }

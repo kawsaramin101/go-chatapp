@@ -61,6 +61,15 @@ type Room struct {
 
 	clients map[*Client]bool
 
+	// Inbound messages from the clients.
+	broadcast chan []byte
+
+	// Register requests from the clients.
+	register chan *Client
+
+	// Unregister requests from clients.
+	unregister chan *Client
+
 	dbRoomID          uint
 	dbRoomSecondaryID string
 }
@@ -122,6 +131,7 @@ func (c *Client) waitForAuth() {
 					dbRoomSecondaryID: roomToCheck.SecondaryID}
 				newRoom.clients[c] = true
 				c.rooms[&newRoom] = true
+				go newRoom.Run()
 			}
 		}
 
@@ -210,20 +220,21 @@ func (c *Client) readPump() {
 			continue
 		}
 
-		if msg.Action == "BROADCAST" {
+		switch msg.Action {
+		case "BROADCAST":
 			// if msgText, ok := msg.Data["message"].(string); ok {
 			// 	// c.hub.broadcast <- []byte(msgText)
 			// 	// log.Printf("Message: %s", msgText)
 			// }
-			// continue
+
+		case "CREATECHAT":
+			CreateChat(&msg, c)
+
+		case "MESSAGE":
+
+			HandleMessage(&msg, c)
 
 		}
-
-		if msg.Action == "CREATECHAT" {
-			CreateChat(msg, c)
-			continue
-		}
-		// fmt.Println(msg)
 
 	}
 }
@@ -299,6 +310,24 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	go client.waitForAuth()
 
+}
+
+func (r *Room) Run() {
+	for {
+		select {
+		case client := <-r.register:
+			r.clients[client] = true
+		case client := <-r.unregister:
+			if _, ok := r.clients[client]; ok {
+				delete(r.clients, client)
+				close(client.send)
+			}
+		case message := <-r.broadcast:
+			for client := range r.clients {
+				client.send <- message
+			}
+		}
+	}
 }
 
 func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
