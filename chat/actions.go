@@ -4,7 +4,7 @@ import (
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
-	"fmt"
+	"log"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -101,11 +101,18 @@ func HandleMessage(msg *Message, c *Client) {
 					"from":            c.dbUser.Username,
 				},
 			}
-			encodedData, _ := json.Marshal(data)
-			fmt.Println(
-				currentRoom.dbRoomID)
-			currentRoom.broadcast <- encodedData
-			return
+
+			encodedData, err := json.Marshal(data)
+			if err != nil {
+				errorData["action"] = "ERROR_SERVER_ERROR"
+				errorData["message"] = "Error in JSON encoding"
+				log.Printf("error marshaling JSON: %v", err)
+
+			} else {
+				currentRoom.broadcast <- encodedData
+				log.Printf("Sent to broadcast channel")
+				// return
+			}
 		} else {
 			errorData["action"] = "ERROR_USER_NOT_IN_THE_ROOM"
 			errorData["message"] = "User is not in the room."

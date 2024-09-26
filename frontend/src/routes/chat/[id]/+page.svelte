@@ -37,6 +37,7 @@
 
     function handleSendMessage(event: SubmitEvent) {
         connection = websocket.get();
+        console.log(connection);
         event.preventDefault();
         const sendingData = {
             action: "MESSAGE",
@@ -60,9 +61,8 @@
 </div>
 
 <form id="form" on:submit={handleSendMessage}>
-    <input id="input" autocomplete="off" bind:value={message} /><button
-        >Send</button
-    >
+    <input id="input" autocomplete="off" bind:value={message} />
+    <button>Send</button>
 </form>
 
 <style>
@@ -103,6 +103,7 @@
         border-radius: 3px;
         outline: none;
         color: #fff;
+        cursor: pointer;
     }
 
     .chat-container {

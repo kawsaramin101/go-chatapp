@@ -7,7 +7,7 @@ interface WebSocketStore {
     subscribe: Writable<WebSocket | null>["subscribe"];
     get: () => WebSocket; // Return null if WebSocket is not initialized
     close: () => void;
-    set: () => void;
+    set: (value: WebSocket | null) => void;
 }
 
 let websocketInstance: WebSocket | null = null;
