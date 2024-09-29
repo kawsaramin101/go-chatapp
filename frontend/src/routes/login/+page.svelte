@@ -1,4 +1,6 @@
 <script lang="ts">
+    import { API_BASE_URL } from "$lib/config/api";
+
     let username: string = "";
     let password: string = "";
     let error: string = "";
@@ -10,19 +12,25 @@
         error = ""; // Clear any previous error
 
         try {
-            const response: Response = await fetch(`${baseUrl}/login`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
+            const response: Response = await fetch(
+                `http://${API_BASE_URL}/login`,
+                {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ username, password }),
                 },
-                body: JSON.stringify({ username, password }),
-            });
+            );
 
             if (response.status === 200) {
-                const result: { token: string; [key: string]: any } =
-                    await response.json();
-                const token: string = result.token;
-                localStorage.setItem("authToken", token);
+                const result: {
+                    token: string;
+                    username: string;
+                    [key: string]: any;
+                } = await response.json();
+                localStorage.setItem("authToken", result.token);
+                localStorage.setItem("username", result.username);
                 window.location.href = "/";
             } else {
                 const result: { message?: string; [key: string]: any } =

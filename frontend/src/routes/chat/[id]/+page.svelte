@@ -11,15 +11,14 @@
     let messages: Message[] = [];
     let message: string = "";
     let chatContainer;
-    let connection: WebSocket;
 
     $: chatId = Number($page.params.id);
 
     onMount(() => {
-        connection = websocket.get();
+        const connection = websocket.get();
 
         connection.onmessage = function (event) {
-            console.log("run");
+            console.log(event.data);
             const data = JSON.parse(event.data);
             switch (data["action"]) {
                 case "MESSAGE":
@@ -36,7 +35,7 @@
     });
 
     function handleSendMessage(event: SubmitEvent) {
-        connection = websocket.get();
+        const connection = websocket.get();
         console.log(connection);
         event.preventDefault();
         const sendingData = {
@@ -47,6 +46,7 @@
             },
         };
         connection.send(JSON.stringify(sendingData));
+        message = "";
     }
 </script>
 

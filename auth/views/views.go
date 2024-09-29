@@ -5,24 +5,28 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html/template"
-	"log"
 	"net/http"
-	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var Store = sessions.NewCookieStore([]byte("your-secret-key"))
-
 var mySigningKey = []byte("your-256-bit-secret")
+
+type Credentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type SignupRequestData struct {
+	Username        string `json:"username"`
+	Password        string `json:"password"`
+	ConfirmPassword string `json:"confirmPassword"`
+}
 
 func respondWithJSON(w http.ResponseWriter, status int, payload interface{}) {
 	w.Header().Set("Content-Type", "application/json")
@@ -46,79 +50,6 @@ func generateJWT(username string, userSecondadyId string) (string, error) {
 }
 
 func Login(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		loginGet(w, r)
-	} else if r.Method == http.MethodPost {
-		loginPost(w, r)
-	} else {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
-}
-
-func Logout(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		session, err := Store.Get(r, "auth-session")
-
-		if err != nil {
-			http.Error(w, `{"message": "Internal server error"}`, http.StatusInternalServerError)
-			return
-		}
-
-		session.Options.MaxAge = -1
-
-		// Save the session to delete it
-		err = session.Save(r, w)
-		if err != nil {
-			http.Error(w, "Failed to delete session", http.StatusInternalServerError)
-			return
-		}
-
-		// Respond to the client
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Logged out successfully"))
-
-	} else {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
-}
-
-func Signup(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodGet {
-		signupGet(w, r)
-	} else if r.Method == http.MethodPost {
-		signupPost(w, r)
-	} else {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
-}
-
-func getHtmlFilePath(relativefilePath string) string {
-	workingDir, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Error getting working directory: %v", err)
-	}
-
-	return filepath.Join(workingDir, relativefilePath)
-}
-
-func loginGet(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles(getHtmlFilePath("/auth/templates/login.html"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
-type Credentials struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func loginPost(w http.ResponseWriter, r *http.Request) {
 	var creds Credentials
 
 	// Decode the JSON request body into the Credentials struct
@@ -150,31 +81,11 @@ func loginPost(w http.ResponseWriter, r *http.Request) {
 
 	tokenString, err := generateJWT(user.Username, user.SecondaryID)
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString})
+	respondWithJSON(w, http.StatusOK, map[string]string{"token": tokenString, "username": user.Username})
 
 }
 
-func signupGet(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles(getHtmlFilePath("/auth/templates/signup.html"))
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = tmpl.Execute(w, nil)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-}
-
-type SignupRequestData struct {
-	Username        string `json:"username"`
-	Password        string `json:"password"`
-	ConfirmPassword string `json:"confirmPassword"`
-}
-
-func signupPost(w http.ResponseWriter, r *http.Request) {
-
+func Signup(w http.ResponseWriter, r *http.Request) {
 	if db.DB == nil {
 		http.Error(w, "Database connection not initialized", http.StatusInternalServerError)
 		return
@@ -209,7 +120,8 @@ func signupPost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	respondWithJSON(w, http.StatusOK, map[string]string{"message": "User created"})
+	respondWithJSON(w, http.StatusCreated, map[string]string{"message": "User created"})
+
 }
 
 func AuthMiddleware(next http.Handler) http.Handler {

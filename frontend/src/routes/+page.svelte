@@ -2,17 +2,31 @@
     import { getContext, onMount } from "svelte";
     import { chats } from "$lib/stores/chats";
     import { websocket } from "$lib/stores/ws";
-
-    let connection: WebSocket;
+    import { goto } from "$app/navigation";
 
     onMount(() => {
-        connection = websocket.get();
+        const connection = websocket.get();
+
+        connection.onmessage = (event: MessageEvent) => {
+            const data = JSON.parse(event.data);
+
+            switch (data["action"]) {
+                case "CHAT_CREATED":
+                    alert("Chat created. Redirecting");
+                    setTimeout(() => {}, 3000);
+                    goto(`/chat/${data["data"]["chatId"]}`);
+                    break;
+                default:
+                    break;
+            }
+        };
     });
 
     function addUser(event: SubmitEvent) {
-        connection = websocket.get();
         event.preventDefault();
+        const connection = websocket.get();
 
+        console.log(connection);
         const formData = new FormData(event.target as HTMLFormElement);
 
         const sendingData = {
@@ -21,9 +35,7 @@
                 username: formData.get("username"),
             },
         };
-        if (connection !== null) {
-            connection.send(JSON.stringify(sendingData));
-        }
+        connection.send(JSON.stringify(sendingData));
     }
 </script>
 

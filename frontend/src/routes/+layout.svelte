@@ -1,6 +1,8 @@
 <script lang="ts">
+    import { page } from "$app/stores";
+    import { beforeNavigate, goto } from "$app/navigation";
+
     // import { onMount } from "svelte";
-    // import { page } from "$app/stores";
     // import { setContext } from "svelte";
     // import { chats } from "$lib/stores/chats";
 
@@ -113,6 +115,43 @@
     //     currentRoute = $page.url.pathname;
     //     console.log("Current route:", currentRoute);
     // }
+    //
+    let currentRoute: string;
+    const username = localStorage.getItem("username");
+    const authToken = localStorage.getItem("authToken");
+
+    beforeNavigate(({ to, cancel }) => {
+        if (to) {
+            const route = to.url.pathname;
+
+            const username = localStorage.getItem("username");
+            const authToken = localStorage.getItem("authToken");
+
+            if (route !== "/login" && route !== "/signup") {
+                if (authToken === null || authToken === "") goto("/login");
+            }
+        }
+    });
+
+    $: {
+        currentRoute = $page.url.pathname;
+        console.log("Current route:", currentRoute);
+        if (currentRoute !== "/login" && currentRoute !== "/signup") {
+            if (authToken === null || authToken === "") goto("/login");
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem("authToken");
+        localStorage.removeItem("username");
+        goto("/login");
+    }
 </script>
 
+{#if currentRoute !== "/login" && currentRoute !== "/signup"}
+    <header>
+        <h4>Logged in as {username}</h4>
+        <button on:click={logout}>Logout</button>
+    </header>
+{/if}
 <slot />

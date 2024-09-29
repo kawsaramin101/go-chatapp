@@ -1,8 +1,6 @@
 package chat
 
 import (
-	auth_views "chatapp/auth/views"
-	db "chatapp/db"
 	"html/template"
 	"net/http"
 
@@ -11,41 +9,41 @@ import (
 
 func Index(w http.ResponseWriter, r *http.Request) {
 
-	session, _ := auth_views.Store.Get(r, "auth-session")
+	// session, _ := auth_views.Store.Get(r, "auth-session")
 
-	if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-		http.Redirect(w, r, "/login", http.StatusFound)
-		return
-	}
+	// if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+	// 	http.Redirect(w, r, "/login", http.StatusFound)
+	// 	return
+	// }
 
-	username := session.Values["username"].(string)
-	userID := session.Values["userID"].(uint)
-	// userSecondaryId := session.Values["userSecondaryId"].(string)
+	// username := session.Values["username"].(string)
+	// userID := session.Values["userID"].(uint)
+	// // userSecondaryId := session.Values["userSecondaryId"].(string)
 
-	var userOne db.User
-	db.DB.First(&userOne, userID)
+	// var userOne db.User
+	// db.DB.First(&userOne, userID)
 
-	// Add users to the chat
+	// // Add users to the chat
 
-	db.DB.Preload("Chats").First(&userOne, userOne.ID)
+	// db.DB.Preload("Chats").First(&userOne, userOne.ID)
 
-	data := struct {
-		Username string
-		Chats    []db.Chat
-	}{
-		Username: username,
-		Chats:    userOne.Chats,
-	}
+	// data := struct {
+	// 	Username string
+	// 	Chats    []db.Chat
+	// }{
+	// 	Username: username,
+	// 	Chats:    userOne.Chats,
+	// }
 
-	tmpl, err := template.ParseFiles("chat/templates/index.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	// tmpl, err := template.ParseFiles("chat/templates/index.html")
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// 	return
+	// }
+	// err = tmpl.Execute(w, data)
+	// if err != nil {
+	// 	http.Error(w, err.Error(), http.StatusInternalServerError)
+	// }
 }
 
 func getChats(w http.ResponseWriter, r *http.Request) {

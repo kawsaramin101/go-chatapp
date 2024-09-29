@@ -4,7 +4,6 @@ import (
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -17,6 +16,7 @@ func CreateChat(msg *Message, c *Client) {
 		if err := db.DB.Where("username = ?", anotherUserUsername).First(&anotherUser).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				response := map[string]string{
+
 					"action":  "ERROR_USER_NOT_FOUND",
 					"message": "User not found",
 				}
@@ -106,12 +106,12 @@ func HandleMessage(msg *Message, c *Client) {
 			if err != nil {
 				errorData["action"] = "ERROR_SERVER_ERROR"
 				errorData["message"] = "Error in JSON encoding"
-				log.Printf("error marshaling JSON: %v", err)
-
 			} else {
 				currentRoom.broadcast <- encodedData
-				log.Printf("Sent to broadcast channel")
-				// return
+
+				// for client := range currentRoom.clients {
+				// 	client.send <- encodedData
+				// }
 			}
 		} else {
 			errorData["action"] = "ERROR_USER_NOT_IN_THE_ROOM"
@@ -121,9 +121,9 @@ func HandleMessage(msg *Message, c *Client) {
 	} else {
 		errorData["action"] = "ERROR_INVALID_PAYLOAD"
 		errorData["message"] = "ChatId or message not provided"
-	}
-	encodedData, _ := json.Marshal(errorData)
+		encodedData, _ := json.Marshal(errorData)
 
-	c.send <- encodedData
+		c.send <- encodedData
+	}
 
 }

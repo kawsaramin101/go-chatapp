@@ -1,7 +1,9 @@
 // src/stores/websocket.ts
-import { writable } from "svelte/store";
+import { writable, get } from "svelte/store";
 import type { Writable } from "svelte/store";
+import { page } from "$app/stores";
 import { chats } from "$lib/stores/chats";
+import { API_BASE_URL } from "$lib/config/api";
 
 interface WebSocketStore {
     subscribe: Writable<WebSocket | null>["subscribe"];
@@ -13,8 +15,7 @@ interface WebSocketStore {
 let websocketInstance: WebSocket | null = null;
 
 const createWebSocket = (): WebSocket => {
-    const baseUrl: string = "localhost:8000";
-    const ws = new WebSocket("ws://" + baseUrl + "/ws");
+    const ws = new WebSocket("ws://" + API_BASE_URL + "/ws");
 
     ws.onopen = function () {
         console.log("WebSocket connection established successfully.");
@@ -23,6 +24,7 @@ const createWebSocket = (): WebSocket => {
     };
 
     ws.onmessage = (event: MessageEvent) => {
+        console.log("run");
         console.log(event.data);
         const data = JSON.parse(event.data);
         switch (data["action"]) {
@@ -52,7 +54,12 @@ const createWebSocket = (): WebSocket => {
     ws.onclose = function (event) {
         console.log("WebSocket connection closed", event);
         // Retry logic on unclean closure
-        if (!event.wasClean) {
+        const currentRoute = get(page).url.pathname;
+        if (
+            !event.wasClean &&
+            currentRoute !== "/login" &&
+            currentRoute !== "/signup"
+        ) {
             setTimeout(() => {
                 websocketInstance = createWebSocket(); // Create a new WebSocket instance
                 websocketStore.set(websocketInstance); // Update store with the new instance
@@ -71,7 +78,6 @@ const websocketStore = (() => {
             websocketInstance === null ||
             websocketInstance.readyState === WebSocket.CLOSED
         ) {
-            console.log("run");
             websocketInstance = createWebSocket(); // Create a new WebSocket if none exists
             set(websocketInstance); // Update the store
         }

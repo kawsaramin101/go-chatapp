@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -73,6 +74,9 @@ type Room struct {
 
 	dbRoomID          uint
 	dbRoomSecondaryID string
+
+	done chan struct{}
+	once sync.Once
 }
 
 func (c *Client) waitForAuth() {
@@ -123,8 +127,6 @@ func (c *Client) waitForAuth() {
 					existingRoom.clients = make(map[*Client]bool)
 				}
 				existingRoom.clients[c] = true
-				existingRoom.register <- c
-
 			} else {
 				newRoom := Room{
 					hub:               c.hub,
@@ -134,6 +136,7 @@ func (c *Client) waitForAuth() {
 					broadcast:         make(chan []byte),
 					register:          make(chan *Client),
 					unregister:        make(chan *Client),
+					done:              make(chan struct{}),
 				}
 				newRoom.clients[c] = true
 				c.hub.rooms[&newRoom] = true
@@ -165,7 +168,14 @@ func (c *Client) waitForAuth() {
 
 		jsonData, err := json.Marshal(initialData)
 
-		c.send <- jsonData
+		// fmt.Println(string(jsonData))
+
+		select {
+		case c.send <- jsonData:
+			fmt.Println("Sending Successful")
+		default:
+			fmt.Println("Sending Unsuccessful")
+		}
 
 		go c.writePump()
 		go c.readPump()
@@ -187,13 +197,16 @@ type Message struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		fmt.Println("stopped readpump")
 		c.hub.unregister <- c
 		for room := range c.rooms {
 			delete(room.clients, c)
 			delete(c.rooms, room)
-		}
 
+			if len(room.clients) == 0 {
+				room.Stop()
+				delete(c.hub.rooms, room)
+			}
+		}
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -205,7 +218,7 @@ func (c *Client) readPump() {
 
 	for {
 		_, message, err := c.conn.ReadMessage()
-		fmt.Println(message)
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				log.Printf("error: %v", err)
@@ -219,7 +232,6 @@ func (c *Client) readPump() {
 		var msg Message
 		// Unmarshal the JSON data into the msg struct
 		err = json.Unmarshal(message, &msg)
-		fmt.Println("run", msg)
 
 		if err != nil {
 			log.Printf("error unmarshaling JSON: %v", err)
@@ -252,13 +264,14 @@ func (c *Client) readPump() {
 func (c *Client) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
-		fmt.Println("writepump")
 		ticker.Stop()
 		c.conn.Close()
 	}()
+	// count := 0
 	for {
 		select {
 		case message, ok := <-c.send:
+			// count++
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -268,21 +281,23 @@ func (c *Client) writePump() {
 
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
+				fmt.Println("run")
 				return
 			}
+			fmt.Println(string(message))
+
 			w.Write(message)
 
-			fmt.Println("run writepump")
 			// Add queued chat messages to the current websocket message.
 			n := len(c.send)
 			for i := 0; i < n; i++ {
 				msg := <-c.send
 				w.Write(newline)
 				w.Write(msg)
-				log.Printf("Sent: %s", msg)
 			}
 
 			if err := w.Close(); err != nil {
+				// fmt.Println(err)
 				return
 			}
 		case <-ticker.C:
@@ -315,37 +330,48 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 func (r *Room) RunRoom() {
 	defer func() {
+		fmt.Println("Run room exited on room ", r.dbRoomID)
 		if err := recover(); err != nil {
 			log.Printf("Panic in RunRoom: %v", err)
 		}
-		fmt.Println("Panic in RunRoom")
 	}()
-	fmt.Println(r.dbRoomID)
 
 	for {
 		select {
 		case client := <-r.register:
-			fmt.Println("run register")
 			r.clients[client] = true
 		case client := <-r.unregister:
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
-				close(client.send)
+				// close(client.send)
 			}
 		case message := <-r.broadcast:
-			{
-				fmt.Println(message)
-				for client := range r.clients {
-					client.send <- message
+			for client := range r.clients {
+				select {
+				case client.send <- message:
+				// Successfully sent the message
+				default:
+					close(client.send)
+					delete(r.clients, client)
 				}
 			}
-
+		case <-r.done: // Listen for the done signal
+			return // Exit the goroutine
+			// default:
+			// 	fmt.Println("error")
 		}
+
 	}
 }
 
+func (r *Room) Stop() {
+	r.once.Do(func() {
+		close(r.done)
+	})
+}
+
 func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
-	if err := db.DB.Where("secondary_id = ?", userSecondaryId).First(&user).Error; err != nil {
+	if err := db.DB.Where("secondary_id = ?", userSecondaryId).First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return err // No user found, return the error or handle it
 		}
