@@ -116,6 +116,18 @@
     //     console.log("Current route:", currentRoute);
     // }
     //
+
+    import { onDestroy, onMount } from "svelte";
+    import { initializeWebSocket, closeWebSocket } from "$lib/stores/ws";
+
+    onMount(() => {
+        initializeWebSocket();
+    });
+
+    onDestroy(() => {
+        closeWebSocket();
+    });
+
     let currentRoute: string;
     const username = localStorage.getItem("username");
     const authToken = localStorage.getItem("authToken");

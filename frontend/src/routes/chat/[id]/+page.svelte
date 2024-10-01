@@ -1,7 +1,7 @@
 <script lang="ts">
     import { getContext, onMount } from "svelte";
     import { page } from "$app/stores";
-    import { websocket } from "$lib/stores/ws";
+    import { wsStore } from "$lib/stores/ws";
 
     type Message = {
         message: string;
@@ -15,9 +15,7 @@
     $: chatId = Number($page.params.id);
 
     onMount(() => {
-        const connection = websocket.get();
-
-        connection.onmessage = function (event) {
+        $wsStore!.onmessage = function (event) {
             console.log(event.data);
             const data = JSON.parse(event.data);
             switch (data["action"]) {
@@ -35,8 +33,6 @@
     });
 
     function handleSendMessage(event: SubmitEvent) {
-        const connection = websocket.get();
-        console.log(connection);
         event.preventDefault();
         const sendingData = {
             action: "MESSAGE",
@@ -45,7 +41,7 @@
                 message: message,
             },
         };
-        connection.send(JSON.stringify(sendingData));
+        $wsStore!.send(JSON.stringify(sendingData));
         message = "";
     }
 </script>

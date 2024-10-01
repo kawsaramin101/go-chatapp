@@ -198,6 +198,7 @@ type Message struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
+		// delete(c.hub.clients, c)
 		for room := range c.rooms {
 			delete(room.clients, c)
 			delete(c.rooms, room)
@@ -208,6 +209,8 @@ func (c *Client) readPump() {
 			}
 		}
 		c.conn.Close()
+		fmt.Println("Read Pump exited")
+
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -215,6 +218,7 @@ func (c *Client) readPump() {
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
+	fmt.Println("Read Pump started")
 
 	for {
 		_, message, err := c.conn.ReadMessage()
@@ -266,8 +270,9 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
+		fmt.Println("Write Pump exited")
 	}()
-	// count := 0
+	fmt.Println("Write Pump started")
 	for {
 		select {
 		case message, ok := <-c.send:
@@ -281,10 +286,9 @@ func (c *Client) writePump() {
 
 			w, err := c.conn.NextWriter(websocket.TextMessage)
 			if err != nil {
-				fmt.Println("run")
 				return
 			}
-			fmt.Println(string(message))
+			// fmt.Println(string(message), "From writepump")
 
 			w.Write(message)
 
@@ -330,7 +334,6 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 func (r *Room) RunRoom() {
 	defer func() {
-		fmt.Println("Run room exited on room ", r.dbRoomID)
 		if err := recover(); err != nil {
 			log.Printf("Panic in RunRoom: %v", err)
 		}
@@ -349,16 +352,14 @@ func (r *Room) RunRoom() {
 			for client := range r.clients {
 				select {
 				case client.send <- message:
-				// Successfully sent the message
 				default:
 					close(client.send)
 					delete(r.clients, client)
 				}
 			}
-		case <-r.done: // Listen for the done signal
-			return // Exit the goroutine
-			// default:
-			// 	fmt.Println("error")
+		case <-r.done:
+			return
+
 		}
 
 	}

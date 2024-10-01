@@ -5,25 +5,23 @@ import { page } from "$app/stores";
 import { chats } from "$lib/stores/chats";
 import { API_BASE_URL } from "$lib/config/api";
 
-interface WebSocketStore {
-    subscribe: Writable<WebSocket | null>["subscribe"];
-    get: () => WebSocket; // Return null if WebSocket is not initialized
-    close: () => void;
-    set: (value: WebSocket | null) => void;
-}
+export const wsStore: Writable<WebSocket | null> = writable(null);
+let wsInstance: WebSocket | null = null;
 
-let websocketInstance: WebSocket | null = null;
+export function initializeWebSocket(): WebSocket {
+    if (wsInstance) return wsInstance;
 
-const createWebSocket = (): WebSocket => {
-    const ws = new WebSocket("ws://" + API_BASE_URL + "/ws");
+    wsInstance = new WebSocket("ws://" + API_BASE_URL + "/ws");
 
-    ws.onopen = function () {
+    wsInstance.onopen = () => {
         console.log("WebSocket connection established successfully.");
+        wsStore.set(wsInstance);
+
         const authToken = localStorage.getItem("authToken") || "";
-        ws.send(authToken);
+        wsInstance!.send(authToken);
     };
 
-    ws.onmessage = (event: MessageEvent) => {
+    wsInstance.onmessage = (event: MessageEvent) => {
         console.log("run");
         console.log(event.data);
         const data = JSON.parse(event.data);
@@ -51,9 +49,15 @@ const createWebSocket = (): WebSocket => {
         }
     };
 
-    ws.onclose = function (event) {
+    wsInstance.onerror = (error: Event) => {
+        console.error("WebSocket error:", error);
+    };
+
+    wsInstance.onclose = (event: CloseEvent) => {
         console.log("WebSocket connection closed", event);
-        // Retry logic on unclean closure
+        wsStore.set(null);
+        wsInstance = null;
+
         const currentRoute = get(page).url.pathname;
         if (
             !event.wasClean &&
@@ -61,46 +65,19 @@ const createWebSocket = (): WebSocket => {
             currentRoute !== "/signup"
         ) {
             setTimeout(() => {
-                websocketInstance = createWebSocket(); // Create a new WebSocket instance
-                websocketStore.set(websocketInstance); // Update store with the new instance
+                wsInstance = initializeWebSocket();
+                wsStore.set(wsInstance);
             }, 2000);
         }
     };
 
-    return ws;
-};
+    return wsInstance;
+}
 
-const websocketStore = (() => {
-    const { subscribe, set }: Writable<WebSocket | null> = writable(null);
-
-    const get = (): WebSocket => {
-        if (
-            websocketInstance === null ||
-            websocketInstance.readyState === WebSocket.CLOSED
-        ) {
-            websocketInstance = createWebSocket(); // Create a new WebSocket if none exists
-            set(websocketInstance); // Update the store
-        }
-        return websocketInstance; // Return the current WebSocket instance
-    };
-
-    const close = (): void => {
-        if (
-            websocketInstance &&
-            websocketInstance.readyState === WebSocket.OPEN
-        ) {
-            websocketInstance.close(); // Close the WebSocket
-            websocketInstance = null; // Clear the instance
-            set(null); // Clear the store
-        }
-    };
-
-    return {
-        subscribe,
-        get,
-        close,
-        set,
-    };
-})();
-
-export const websocket: WebSocketStore = websocketStore;
+export function closeWebSocket(): void {
+    if (wsInstance && wsInstance.readyState === WebSocket.OPEN) {
+        wsInstance.close();
+    }
+    wsStore.set(null);
+    wsInstance = null;
+}
