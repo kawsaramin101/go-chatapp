@@ -22,8 +22,6 @@ export function initializeWebSocket(): WebSocket {
     };
 
     wsInstance.onmessage = (event: MessageEvent) => {
-        console.log("run");
-        console.log(event.data);
         const data = JSON.parse(event.data);
         switch (data["action"]) {
             case "ERROR_USER_NOT_FOUND":

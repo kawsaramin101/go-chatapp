@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { getContext, onMount } from "svelte";
+    import { onMount } from "svelte";
     import { page } from "$app/stores";
     import { wsStore } from "$lib/stores/ws";
 
@@ -41,7 +41,7 @@
                 message: message,
             },
         };
-        $wsStore!.send(JSON.stringify(sendingData));
+        $wsStore?.send(JSON.stringify(sendingData));
         message = "";
     }
 </script>

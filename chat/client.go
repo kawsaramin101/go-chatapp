@@ -255,6 +255,9 @@ func (c *Client) readPump() {
 		case "MESSAGE":
 			HandleMessage(&msg, c)
 
+		case "CHECK_IF_USER_EXIST":
+			CheckIfUserExist(&msg, c)
+
 		}
 
 	}

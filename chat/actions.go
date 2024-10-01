@@ -74,11 +74,60 @@ func CreateChat(msg *Message, c *Client) {
 
 }
 
+func CheckIfUserExist(msg *Message, c *Client) {
+	username, ok := msg.Data["username"].(string)
+
+	errorData := make(map[string]string)
+	if ok {
+		var user db.User
+		err := db.DB.Where("username = ?", username).First(&user).Error
+
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				errorData["action"] = "CHECK_IF_USER_EXIST"
+				errorData["message"] = "User not found"
+
+				data := map[string]interface{}{
+					"action": "CHECK_IF_USER_EXIST",
+					"data": map[string]interface{}{
+						"username": username,
+						"exists":   false,
+					},
+				}
+
+				encodedData, _ := json.Marshal(data)
+				c.send <- encodedData
+			} else {
+				errorData["action"] = "ERROR_SERVER_ERROR"
+				errorData["message"] = "SERVER ERROR"
+			}
+			return
+		} else {
+			data := map[string]interface{}{
+				"action": "CHECK_IF_USER_EXIST",
+				"data": map[string]interface{}{
+					"username": username,
+					"exists":   true,
+				},
+			}
+
+			encodedData, _ := json.Marshal(data)
+			c.send <- encodedData
+		}
+
+	} else {
+		errorData["action"] = "ERROR_INVALID_PAYLOAD"
+		errorData["message"] = "Username not provided"
+	}
+	encodedData, _ := json.Marshal(errorData)
+	c.send <- encodedData
+}
+
 func HandleMessage(msg *Message, c *Client) {
 	chatId, ok := msg.Data["chatId"].(float64)
 	message, ok := msg.Data["message"].(string)
 
-	errorData := make(map[string]interface{})
+	errorData := make(map[string]string)
 
 	if ok {
 		found := false
@@ -108,10 +157,7 @@ func HandleMessage(msg *Message, c *Client) {
 				errorData["message"] = "Error in JSON encoding"
 			} else {
 				currentRoom.broadcast <- encodedData
-
-				// for client := range currentRoom.clients {
-				// 	client.send <- encodedData
-				// }
+				return
 			}
 		} else {
 			errorData["action"] = "ERROR_USER_NOT_IN_THE_ROOM"
@@ -121,9 +167,11 @@ func HandleMessage(msg *Message, c *Client) {
 	} else {
 		errorData["action"] = "ERROR_INVALID_PAYLOAD"
 		errorData["message"] = "ChatId or message not provided"
-		encodedData, _ := json.Marshal(errorData)
 
-		c.send <- encodedData
 	}
+
+	encodedData, _ := json.Marshal(errorData)
+
+	c.send <- encodedData
 
 }
