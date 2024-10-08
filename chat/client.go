@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -56,27 +55,6 @@ type Client struct {
 	send chan []byte
 
 	dbUser db.User
-}
-
-type Room struct {
-	hub *Hub
-
-	clients map[*Client]bool
-
-	// Inbound messages from the clients.
-	broadcast chan []byte
-
-	// Register requests from the clients.
-	register chan *Client
-
-	// Unregister requests from clients.
-	unregister chan *Client
-
-	dbRoomID          uint
-	dbRoomSecondaryID string
-
-	done chan struct{}
-	once sync.Once
 }
 
 func (c *Client) waitForAuth() {
@@ -185,9 +163,14 @@ func (c *Client) waitForAuth() {
 	}
 }
 
+// type IncomingData struct {
+//     Action string      `json:"ACTION"`
+//     Data   json.RawMessage `json:"DATA"` // Use RawMessage for lazy decoding
+// }
+
 type Message struct {
-	Action string                 `json:"action"`
-	Data   map[string]interface{} `json:"data"` // Generic to allow varying structures
+	Action string          `json:"action"`
+	Data   json.RawMessage `json:"data"` // Generic to allow varying structures
 }
 
 // readPump pumps messages from the websocket connection to the hub.
@@ -198,7 +181,6 @@ type Message struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregister <- c
-		// delete(c.hub.clients, c)
 		for room := range c.rooms {
 			delete(room.clients, c)
 			delete(c.rooms, room)
@@ -209,8 +191,6 @@ func (c *Client) readPump() {
 			}
 		}
 		c.conn.Close()
-		fmt.Println("Read Pump exited")
-
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
 	c.conn.SetReadDeadline(time.Now().Add(pongWait))
@@ -218,8 +198,6 @@ func (c *Client) readPump() {
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		return nil
 	})
-	fmt.Println("Read Pump started")
-
 	for {
 		_, message, err := c.conn.ReadMessage()
 
@@ -244,10 +222,6 @@ func (c *Client) readPump() {
 
 		switch msg.Action {
 		case "BROADCAST":
-			// if msgText, ok := msg.Data["message"].(string); ok {
-			// 	// c.hub.broadcast <- []byte(msgText)
-			// 	// log.Printf("Message: %s", msgText)
-			// }
 
 		case "CREATECHAT":
 			CreateChat(&msg, c)
@@ -333,45 +307,6 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 	client.hub.register <- client
 
 	go client.waitForAuth()
-}
-
-func (r *Room) RunRoom() {
-	defer func() {
-		if err := recover(); err != nil {
-			log.Printf("Panic in RunRoom: %v", err)
-		}
-	}()
-
-	for {
-		select {
-		case client := <-r.register:
-			r.clients[client] = true
-		case client := <-r.unregister:
-			if _, ok := r.clients[client]; ok {
-				delete(r.clients, client)
-				// close(client.send)
-			}
-		case message := <-r.broadcast:
-			for client := range r.clients {
-				select {
-				case client.send <- message:
-				default:
-					close(client.send)
-					delete(r.clients, client)
-				}
-			}
-		case <-r.done:
-			return
-
-		}
-
-	}
-}
-
-func (r *Room) Stop() {
-	r.once.Do(func() {
-		close(r.done)
-	})
 }
 
 func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {

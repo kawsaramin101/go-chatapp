@@ -2,6 +2,10 @@
 import { writable, get } from "svelte/store";
 import type { Writable } from "svelte/store";
 import { page } from "$app/stores";
+
+import Toastify from "toastify-js";
+import "toastify-js/src/toastify.css";
+
 import { chats } from "$lib/stores/chats";
 import { API_BASE_URL } from "$lib/config/api";
 
@@ -27,12 +31,15 @@ export function initializeWebSocket(): WebSocket {
             case "ERROR_USER_NOT_FOUND":
             case "ERROR_SERVER_ERROR":
             case "ERROR_INVALID_PAYLOAD":
-                alert(data["message"]);
-                break;
-
-            case "CHAT_CREATED":
-                alert("Chat created");
-                setTimeout(() => {}, 3000);
+                Toastify({
+                    text: data["message"],
+                    duration: 3000,
+                    close: true,
+                    gravity: "top", // `top` or `bottom`
+                    position: "center", // `left`, `center` or `right`
+                    stopOnFocus: true, // Prevents dismissing of toast on hover
+                    onClick: function () {}, // Callback after click
+                }).showToast();
                 break;
 
             case "INITIAL_DATA":

@@ -2,7 +2,6 @@
     import { getContext, onMount } from "svelte";
     import { chats } from "$lib/stores/chats";
     import { wsStore } from "$lib/stores/ws";
-    import { goto } from "$app/navigation";
 
     const currentUser = localStorage.getItem("username");
 
@@ -10,24 +9,6 @@
         console.log("WebSocket is ready in this component");
         // Use $wsStore here
     }
-
-    onMount(() => {
-        // const connection = websocket.get();
-
-        $wsStore!.onmessage = (event: MessageEvent) => {
-            const data = JSON.parse(event.data);
-
-            switch (data["action"]) {
-                case "CHAT_CREATED":
-                    alert("Chat created. Redirecting");
-                    setTimeout(() => {}, 3000);
-                    goto(`/chat/${data["data"]["chatId"]}`);
-                    break;
-                default:
-                    break;
-            }
-        };
-    });
 </script>
 
 <a href="/login">Login</a>
