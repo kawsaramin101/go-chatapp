@@ -15,9 +15,7 @@
     $: chatId = Number($page.params.id);
 
     function handleIncommingMessage(event: MessageEvent) {
-        console.log(event);
         const data = JSON.parse(event.data);
-        // console.log(data);
 
         switch (data["action"]) {
             case "MESSAGE":

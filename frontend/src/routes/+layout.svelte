@@ -161,9 +161,22 @@
 </script>
 
 {#if currentRoute !== "/login" && currentRoute !== "/signup"}
-    <header>
-        <h4>Logged in as {username}</h4>
-        <button on:click={logout}>Logout</button>
+    <header class="navbar is-dark is-fixed-top">
+        <div class="navbar-brand">
+            <h3 class="navbar-item subtitle">{username}</h3>
+        </div>
+        <div class="navbar-end">
+            <div class="navbar-item">
+                <a class="button is-link" href="/create_chat">Create Chat</a>
+                <button class="button is-light" on:click={logout}>Logout</button
+                >
+            </div>
+        </div>
     </header>
 {/if}
-<slot />
+
+<section class="section">
+    <div class="container">
+        <slot />
+    </div>
+</section>
