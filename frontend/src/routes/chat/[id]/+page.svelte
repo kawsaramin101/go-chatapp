@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onDestroy } from "svelte";
     import { page } from "$app/stores";
     import { wsStore } from "$lib/stores/ws";
 
@@ -14,22 +14,30 @@
 
     $: chatId = Number($page.params.id);
 
-    onMount(() => {
-        $wsStore!.onmessage = function (event) {
-            console.log(event.data);
-            const data = JSON.parse(event.data);
-            switch (data["action"]) {
-                case "MESSAGE":
-                    const newMessage: Message = {
-                        message: data["data"]["message"],
-                        from: data["data"]["from"],
-                    };
-                    messages = [newMessage, ...messages];
-                    break;
-                default:
-                    break;
-            }
-        };
+    function handleIncommingMessage(event: MessageEvent) {
+        console.log(event);
+        const data = JSON.parse(event.data);
+        // console.log(data);
+
+        switch (data["action"]) {
+            case "MESSAGE":
+                const newMessage: Message = {
+                    message: data["data"]["message"],
+                    from: data["data"]["from"],
+                };
+                messages = [newMessage, ...messages];
+                break;
+            default:
+                break;
+        }
+    }
+
+    $: if ($wsStore) {
+        $wsStore.addEventListener("message", handleIncommingMessage);
+    }
+
+    onDestroy(() => {
+        $wsStore?.removeEventListener("message", handleIncommingMessage);
     });
 
     function handleSendMessage(event: SubmitEvent) {

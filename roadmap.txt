@@ -1,0 +1,9 @@
+Issue
+1. Message get multiplied
+
+Roadmap
+1. Group chat
+2. Add bulma to frontend and improve frontend
+3. Seen status in duo chat
+4. Message storing
+5. Show connection and disconnection info using Toastify

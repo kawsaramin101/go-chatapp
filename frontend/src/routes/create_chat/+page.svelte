@@ -1,6 +1,8 @@
 <script lang="ts">
-    import { wsStore } from "$lib/stores/ws";
+    import { onDestroy } from "svelte";
     import { goto } from "$app/navigation";
+
+    import { wsStore } from "$lib/stores/ws";
 
     import Toastify from "toastify-js";
     import "toastify-js/src/toastify.css";
@@ -22,40 +24,44 @@
     }
 
     $: if ($wsStore) {
-        $wsStore.addEventListener("message", function (event) {
-            console.log(event.data);
-            const data = JSON.parse(event.data);
-            switch (data["action"]) {
-                case "CHECK_IF_USER_EXIST":
-                    const exists = data["data"]["exists"] as boolean;
-                    const username = data["data"]["username"] as string;
-                    console.log(username);
-                    if (exists) {
-                        users = [username, ...users];
-                    } else {
-                        alert(`User with username ${username} doesn't exist`);
-                    }
-                    break;
+        $wsStore.addEventListener("message", handleIncommingMessage);
+    }
 
-                case "CHAT_CREATED":
-                    Toastify({
-                        text: "Chat created. Redirecting",
-                        duration: 3000,
-                        close: true,
-                        gravity: "top", // `top` or `bottom`
-                        position: "center", // `left`, `center` or `right`
-                        stopOnFocus: true, // Prevents dismissing of toast on hover
-                        onClick: function () {}, // Callback after click
-                    }).showToast();
-                    setTimeout(() => {}, 3000);
+    onDestroy(() => {
+        $wsStore?.removeEventListener("message", handleIncommingMessage);
+    });
 
-                    goto(`/chat/${data["data"]["chatId"]}`);
-                    break;
+    function handleIncommingMessage(event: MessageEvent) {
+        const data = JSON.parse(event.data);
+        switch (data["action"]) {
+            case "CHECK_IF_USER_EXIST":
+                const exists = data["data"]["exists"] as boolean;
+                const username = data["data"]["username"] as string;
+                if (exists) {
+                    users = [username, ...users];
+                } else {
+                    alert(`User with username ${username} doesn't exist`);
+                }
+                break;
 
-                default:
-                    break;
-            }
-        });
+            case "CHAT_CREATED":
+                Toastify({
+                    text: "Chat created. Redirecting",
+                    duration: 3000,
+                    close: true,
+                    gravity: "top", // `top` or `bottom`
+                    position: "center", // `left`, `center` or `right`
+                    stopOnFocus: true, // Prevents dismissing of toast on hover
+                    onClick: function () {}, // Callback after click
+                }).showToast();
+                setTimeout(() => {}, 3000);
+
+                goto(`/chat/${data["data"]["chatId"]}`);
+                break;
+
+            default:
+                break;
+        }
     }
 
     function checkUser() {

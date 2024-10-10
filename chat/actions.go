@@ -4,6 +4,7 @@ import (
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 
 	"github.com/google/uuid"
@@ -20,24 +21,9 @@ type CreateChatData struct {
 }
 
 func CreateChat(msg *Message, c *Client) {
-
 	var data CreateChatData
 	err := json.Unmarshal(msg.Data, &data)
 
-	// usernamesInterface, ok := data["usernames"].([]interface{})
-	// usernames := make([]string, len(usernamesInterface))
-
-	// usern
-	// for i, v := range usernamesInterface {
-	// 	if s, ok := v.(string); ok {
-	// 		usernames[i] = s
-	// 	} else {
-	// 		fmt.Printf("Username at index %d is not a string\n", i)
-	// 	}
-	// }
-	// usernam
-	// fmt.Println(usernames)
-	//
 	var errorData ErrorData
 
 	if err == nil {
@@ -112,9 +98,10 @@ func CreateChat(msg *Message, c *Client) {
 		errorData.Action = "ERROR_INVALID_PAYLOAD"
 		errorData.Message = "Usernames not provided"
 
-		enCodedData, _ := json.Marshal(errorData)
-		c.send <- enCodedData
 	}
+
+	enCodedData, _ := json.Marshal(errorData)
+	c.send <- enCodedData
 
 }
 
@@ -182,11 +169,12 @@ type HandleMessageData struct {
 
 func HandleMessage(msg *Message, c *Client) {
 	var data HandleMessageData
+	fmt.Println(string(msg.Data))
 	err := json.Unmarshal(msg.Data, &data)
 
 	var errorData ErrorData
 
-	if err != nil {
+	if err == nil {
 		found := false
 		var currentRoom *Room
 		for room := range c.rooms {
@@ -207,7 +195,7 @@ func HandleMessage(msg *Message, c *Client) {
 					From            string `json:"from"`
 				} `json:"data"`
 			}{
-				Action: "CHAT_CREATED",
+				Action: "MESSAGE",
 				Data: struct {
 					ChatId          uint   `json:"chatId"`
 					ChatSecondaryId string `json:"chatSecondaryId"`
@@ -226,7 +214,9 @@ func HandleMessage(msg *Message, c *Client) {
 				errorData.Action = "ERROR_SERVER_ERROR"
 				errorData.Message = "Error in JSON encoding"
 			} else {
-				currentRoom.broadcast <- encodedData
+				for client := range currentRoom.clients {
+					client.send <- encodedData
+				}
 				return
 			}
 		} else {
@@ -239,9 +229,8 @@ func HandleMessage(msg *Message, c *Client) {
 		errorData.Message = "ChatId or message not provided"
 
 	}
-
+	log.Printf("error unmarshaling JSON: %v", err)
 	encodedData, _ := json.Marshal(errorData)
 
 	c.send <- encodedData
-
 }

@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	auth_views "chatapp/auth/views"
+	auth_views "chatapp/auth"
 	chat_views "chatapp/chat"
 
 	// "chatapp/chat/hub"

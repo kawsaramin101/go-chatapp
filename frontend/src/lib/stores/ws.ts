@@ -46,8 +46,6 @@ export function initializeWebSocket(): WebSocket {
                 chats.setChats(data["data"]["chats"]);
                 break;
 
-            case "MESSAGE":
-
             default:
                 // Handle any other actions if needed
                 break;

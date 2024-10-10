@@ -1,6 +1,7 @@
 package chat
 
 import (
+	"fmt"
 	"log"
 	"sync"
 )
@@ -14,10 +15,10 @@ type Room struct {
 	broadcast chan []byte
 
 	// Register requests from the clients.
-	register chan *Client
+	registerClient chan *Client
 
 	// Unregister requests from clients.
-	unregister chan *Client
+	unregisterClient chan *Client
 
 	dbRoomID          uint
 	dbRoomSecondaryID string
@@ -35,15 +36,20 @@ func (r *Room) RunRoom() {
 
 	for {
 		select {
-		case client := <-r.register:
+		case client := <-r.registerClient:
 			r.clients[client] = true
-		case client := <-r.unregister:
+		case client := <-r.unregisterClient:
 			if _, ok := r.clients[client]; ok {
 				delete(r.clients, client)
-				// close(client.send)
 			}
+			if len(r.clients) == 0 {
+				r.Stop()
+				r.hub.unregisterRoom <- r
+			}
+
 		case message := <-r.broadcast:
 			for client := range r.clients {
+				fmt.Println("send to ", client.dbUser.Username)
 				select {
 				case client.send <- message:
 				default:
@@ -60,10 +66,21 @@ func (r *Room) RunRoom() {
 }
 
 func (r *Room) Stop() {
-
 	close(r.done)
 	close(r.broadcast)
-	close(r.register)
-	close(r.unregister)
+	close(r.registerClient)
+	close(r.unregisterClient)
+}
 
+func NewRoom(hub *Hub, dbRoomID uint, dbRoomSecondaryID string) *Room {
+	return &Room{
+		hub:               hub,
+		dbRoomID:          dbRoomID,
+		dbRoomSecondaryID: dbRoomSecondaryID,
+		broadcast:         make(chan []byte),
+		registerClient:    make(chan *Client),
+		unregisterClient:  make(chan *Client),
+		clients:           make(map[*Client]bool),
+		done:              make(chan struct{}),
+	}
 }

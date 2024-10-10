@@ -2,7 +2,7 @@ package chat
 
 import (
 	"bytes"
-	auth_views "chatapp/auth/views"
+	auth_views "chatapp/auth"
 	db "chatapp/db"
 	"encoding/json"
 	"errors"
@@ -46,7 +46,8 @@ var upgrader = websocket.Upgrader{
 type Client struct {
 	hub *Hub
 
-	rooms map[*Room]bool
+	rooms       map[*Room]bool
+	activeRooms map[*Room]bool
 
 	// The websocket connection.
 	conn *websocket.Conn
@@ -104,22 +105,17 @@ func (c *Client) waitForAuth() {
 				if existingRoom.clients == nil {
 					existingRoom.clients = make(map[*Client]bool)
 				}
-				existingRoom.clients[c] = true
+				// existingRoom.clients[c] = true
+
+				c.hub.registerToRoom <- RegisterToRoomInfo{room: existingRoom, client: c}
 			} else {
-				newRoom := Room{
-					hub:               c.hub,
-					clients:           make(map[*Client]bool),
-					dbRoomID:          roomToCheck.ID,
-					dbRoomSecondaryID: roomToCheck.SecondaryID,
-					broadcast:         make(chan []byte),
-					register:          make(chan *Client),
-					unregister:        make(chan *Client),
-					done:              make(chan struct{}),
-				}
-				newRoom.clients[c] = true
-				c.hub.rooms[&newRoom] = true
-				c.rooms[&newRoom] = true
-				go newRoom.RunRoom()
+				newRoom := NewRoom(c.hub, roomToCheck.ID, roomToCheck.SecondaryID)
+
+				// newRoom.clients[c] = true
+				c.hub.rooms[newRoom] = true
+				c.rooms[newRoom] = true
+				c.hub.registerToRoom <- RegisterToRoomInfo{room: newRoom, client: c}
+				// go newRoom.RunRoom()
 			}
 		}
 
@@ -137,26 +133,24 @@ func (c *Client) waitForAuth() {
 			}
 		}
 
-		initialData := map[string]interface{}{
-			"action": "INITIAL_DATA",
-			"data": map[string]interface{}{
-				"chats": user.Chats,
+		initialData := struct {
+			Action string `json:"action"`
+			Data   struct {
+				Chats []db.Chat `json:"chats"`
+			} `json:"data"`
+		}{
+			Action: "INITIAL_DATA",
+			Data: struct {
+				Chats []db.Chat `json:"chats"`
+			}{
+				Chats: user.Chats,
 			},
 		}
-
-		jsonData, err := json.Marshal(initialData)
-
-		// fmt.Println(string(jsonData))
-
-		select {
-		case c.send <- jsonData:
-			fmt.Println("Sending Successful")
-		default:
-			fmt.Println("Sending Unsuccessful")
-		}
-
 		go c.writePump()
 		go c.readPump()
+		jsonData, err := json.Marshal(initialData)
+
+		c.send <- jsonData
 
 		return
 
@@ -180,15 +174,20 @@ type Message struct {
 // reads from this goroutine.
 func (c *Client) readPump() {
 	defer func() {
-		c.hub.unregister <- c
+		c.hub.unregisterClient <- c
 		for room := range c.rooms {
-			delete(room.clients, c)
+			// delete(room.clients, c)
+			// room.unregisterClient <- c
 			delete(c.rooms, room)
 
-			if len(room.clients) == 0 {
-				room.Stop()
-				delete(c.hub.rooms, room)
-			}
+			c.hub.unregisterToRoom <- RegisterToRoomInfo{room: room, client: c}
+			// if _, ok := room.clients[c]; ok {
+			// 	delete(room.clients, c)
+			// }
+			// if len(room.clients) == 0 {
+			// 	// room.Stop()
+			// 	c.hub.unregisterRoom <- room
+			// }
 		}
 		c.conn.Close()
 	}()
@@ -233,7 +232,6 @@ func (c *Client) readPump() {
 			CheckIfUserExist(&msg, c)
 
 		}
-
 	}
 }
 
@@ -247,13 +245,12 @@ func (c *Client) writePump() {
 	defer func() {
 		ticker.Stop()
 		c.conn.Close()
-		fmt.Println("Write Pump exited")
 	}()
-	fmt.Println("Write Pump started")
+	fmt.Println("write pump started")
+
 	for {
 		select {
 		case message, ok := <-c.send:
-			// count++
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if !ok {
 				// The hub closed the channel.
@@ -265,7 +262,6 @@ func (c *Client) writePump() {
 			if err != nil {
 				return
 			}
-			// fmt.Println(string(message), "From writepump")
 
 			w.Write(message)
 
@@ -278,7 +274,7 @@ func (c *Client) writePump() {
 			}
 
 			if err := w.Close(); err != nil {
-				// fmt.Println(err)
+				fmt.Println(err)
 				return
 			}
 		case <-ticker.C:
@@ -304,7 +300,7 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		send:  make(chan []byte, 256),
 		rooms: make(map[*Room]bool),
 	}
-	client.hub.register <- client
+	client.hub.registerClient <- client
 
 	go client.waitForAuth()
 }
