@@ -15,10 +15,6 @@ type Room struct {
 	broadcast chan []byte
 
 	// Register requests from the clients.
-	registerClient chan *Client
-
-	// Unregister requests from clients.
-	unregisterClient chan *Client
 
 	dbRoomID          uint
 	dbRoomSecondaryID string
@@ -36,17 +32,6 @@ func (r *Room) RunRoom() {
 
 	for {
 		select {
-		case client := <-r.registerClient:
-			r.clients[client] = true
-		case client := <-r.unregisterClient:
-			if _, ok := r.clients[client]; ok {
-				delete(r.clients, client)
-			}
-			if len(r.clients) == 0 {
-				r.Stop()
-				r.hub.unregisterRoom <- r
-			}
-
 		case message := <-r.broadcast:
 			for client := range r.clients {
 				fmt.Println("send to ", client.dbUser.Username)
@@ -68,8 +53,7 @@ func (r *Room) RunRoom() {
 func (r *Room) Stop() {
 	close(r.done)
 	close(r.broadcast)
-	close(r.registerClient)
-	close(r.unregisterClient)
+
 }
 
 func NewRoom(hub *Hub, dbRoomID uint, dbRoomSecondaryID string) *Room {
@@ -78,9 +62,23 @@ func NewRoom(hub *Hub, dbRoomID uint, dbRoomSecondaryID string) *Room {
 		dbRoomID:          dbRoomID,
 		dbRoomSecondaryID: dbRoomSecondaryID,
 		broadcast:         make(chan []byte),
-		registerClient:    make(chan *Client),
-		unregisterClient:  make(chan *Client),
 		clients:           make(map[*Client]bool),
 		done:              make(chan struct{}),
+	}
+}
+
+func (r *Room) RegisterClient(client *Client) {
+	r.clients[client] = true
+}
+
+func (r *Room) UnregisterClient(client *Client) {
+	if _, ok := r.clients[client]; ok {
+		delete(r.clients, client)
+		fmt.Println("User Removed from Room")
+	}
+
+	if len(r.clients) == 0 {
+		r.hub.unregisterRoom <- r
+		fmt.Println(len(r.clients), " Room lengths")
 	}
 }

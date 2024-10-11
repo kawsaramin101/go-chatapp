@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -189,23 +190,26 @@ func HandleMessage(msg *Message, c *Client) {
 			data := struct {
 				Action string `json:"action"`
 				Data   struct {
-					ChatId          uint   `json:"chatId"`
-					ChatSecondaryId string `json:"chatSecondaryId"`
-					Message         string `json:"message"`
-					From            string `json:"from"`
+					ChatId          uint      `json:"chatId"`
+					ChatSecondaryId string    `json:"chatSecondaryId"`
+					Message         string    `json:"message"`
+					From            string    `json:"from"`
+					CreatedAt       time.Time `json:"createdAt"`
 				} `json:"data"`
 			}{
 				Action: "MESSAGE",
 				Data: struct {
-					ChatId          uint   `json:"chatId"`
-					ChatSecondaryId string `json:"chatSecondaryId"`
-					Message         string `json:"message"`
-					From            string `json:"from"`
+					ChatId          uint      `json:"chatId"`
+					ChatSecondaryId string    `json:"chatSecondaryId"`
+					Message         string    `json:"message"`
+					From            string    `json:"from"`
+					CreatedAt       time.Time `json:"createdAt"`
 				}{
 					ChatId:          currentRoom.dbRoomID,
 					ChatSecondaryId: currentRoom.dbRoomSecondaryID,
 					Message:         data.Message,
 					From:            c.dbUser.Username,
+					CreatedAt:       time.Now(),
 				},
 			}
 

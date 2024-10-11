@@ -1,7 +1,11 @@
 <script lang="ts">
-    import { onDestroy } from "svelte";
+    import { onDestroy, onMount } from "svelte";
     import { page } from "$app/stores";
     import { wsStore } from "$lib/stores/ws";
+
+    import { activeChatId } from "$lib/stores/activeChatIdstore";
+
+    import { messageStore } from "$lib/stores/messagesStore";
 
     type Message = {
         message: string;
@@ -14,17 +18,24 @@
 
     $: chatId = Number($page.params.id);
 
+    onMount(() => {
+        activeChatId.set(chatId);
+    });
+
     function handleIncommingMessage(event: MessageEvent) {
         const data = JSON.parse(event.data);
 
         switch (data["action"]) {
-            case "MESSAGE":
-                const newMessage: Message = {
-                    message: data["data"]["message"],
-                    from: data["data"]["from"],
-                };
-                messages = [newMessage, ...messages];
-                break;
+            // case "MESSAGE":
+            //     console.log(data["data"]["chatId"] as Number);
+            //     if ((data["data"]["chatId"] as Number) === chatId) {
+            //         const newMessage: Message = {
+            //             message: data["data"]["message"],
+            //             from: data["data"]["from"],
+            //         };
+            //         messages = [newMessage, ...messages];
+            //     }
+            //     break;
             default:
                 break;
         }
@@ -35,7 +46,9 @@
     }
 
     onDestroy(() => {
+        activeChatId.set(null);
         $wsStore?.removeEventListener("message", handleIncommingMessage);
+        messageStore.set([]);
     });
 
     function handleSendMessage(event: SubmitEvent) {
@@ -54,10 +67,10 @@
 
 <div class="chat-container" bind:this={chatContainer}>
     <!-- Display messages in the natural order (older at the top, newer at the bottom) -->
-    {#each messages as msg}
+    {#each $messageStore as msg}
         <div class="message">
             <strong>{msg.from}:</strong>
-            {msg.message}
+            {msg.content}
         </div>
     {/each}
 </div>

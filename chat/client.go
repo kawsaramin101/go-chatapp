@@ -102,20 +102,15 @@ func (c *Client) waitForAuth() {
 		for _, roomToCheck := range user.Chats {
 			if existingRoom, exists := roomMap[roomToCheck.ID]; exists {
 				c.rooms[existingRoom] = true
-				if existingRoom.clients == nil {
-					existingRoom.clients = make(map[*Client]bool)
-				}
-				// existingRoom.clients[c] = true
 
-				c.hub.registerToRoom <- RegisterToRoomInfo{room: existingRoom, client: c}
+				existingRoom.RegisterClient(c)
 			} else {
 				newRoom := NewRoom(c.hub, roomToCheck.ID, roomToCheck.SecondaryID)
 
-				// newRoom.clients[c] = true
-				c.hub.rooms[newRoom] = true
+				c.hub.registerRoom <- newRoom
+
 				c.rooms[newRoom] = true
-				c.hub.registerToRoom <- RegisterToRoomInfo{room: newRoom, client: c}
-				// go newRoom.RunRoom()
+				newRoom.RegisterClient(c)
 			}
 		}
 
@@ -175,20 +170,12 @@ type Message struct {
 func (c *Client) readPump() {
 	defer func() {
 		c.hub.unregisterClient <- c
-		for room := range c.rooms {
-			// delete(room.clients, c)
-			// room.unregisterClient <- c
-			delete(c.rooms, room)
 
-			c.hub.unregisterToRoom <- RegisterToRoomInfo{room: room, client: c}
-			// if _, ok := room.clients[c]; ok {
-			// 	delete(room.clients, c)
-			// }
-			// if len(room.clients) == 0 {
-			// 	// room.Stop()
-			// 	c.hub.unregisterRoom <- room
-			// }
+		for room := range c.rooms {
+			delete(c.rooms, room)
+			room.UnregisterClient(c)
 		}
+
 		c.conn.Close()
 	}()
 	c.conn.SetReadLimit(maxMessageSize)
@@ -246,7 +233,6 @@ func (c *Client) writePump() {
 		ticker.Stop()
 		c.conn.Close()
 	}()
-	fmt.Println("write pump started")
 
 	for {
 		select {

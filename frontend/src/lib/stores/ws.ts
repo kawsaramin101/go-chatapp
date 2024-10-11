@@ -7,7 +7,10 @@ import Toastify from "toastify-js";
 import "toastify-js/src/toastify.css";
 
 import { chats } from "$lib/stores/chats";
+import type { Message } from "$lib/models";
 import { API_BASE_URL } from "$lib/config/api";
+import { activeChatId } from "$lib/stores/activeChatIdstore";
+import { messageStoreOperations } from "$lib/stores/messagesStore";
 
 export const wsStore: Writable<WebSocket | null> = writable(null);
 let wsInstance: WebSocket | null = null;
@@ -44,6 +47,27 @@ export function initializeWebSocket(): WebSocket {
 
             case "INITIAL_DATA":
                 chats.setChats(data["data"]["chats"]);
+                break;
+
+            case "MESSAGE":
+                console.log(data["data"]["chatId"] as Number);
+                const chatId = get(activeChatId);
+
+                if (
+                    chatId !== null &&
+                    (data["data"]["chatId"] as Number) === chatId
+                ) {
+                    const newMessage: Message = {
+                        dbSecondaryId: data["data"]["chatSecondaryId"],
+                        chatId: data["data"]["chatId"],
+                        // CreatedAt: chatSecondaryId,
+                        content: data["data"]["message"],
+                        from: data["data"]["from"],
+                        createdAt: data["data"]["createdAt"],
+                    };
+                    messageStoreOperations.addMessage(newMessage);
+                    // messages = [newMessage, ...messages];
+                }
                 break;
 
             default:

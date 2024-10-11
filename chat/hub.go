@@ -1,43 +1,35 @@
 package chat
 
+import "fmt"
+
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
 	// Registered clients.
-	clients     map[*Client]bool
-	rooms       map[*Room]bool
-	activeRooms map[*Room]bool
-
-	// Inbound messages from the clients.
-	broadcast       chan []byte
-	broadcastToRoom chan RoomMessage
+	clients map[*Client]bool
+	rooms   map[*Room]bool
 
 	// Register requests from the clients.
 	registerClient chan *Client
-
-	// Unregister requests from clients.
+	// Unregister requests from the clients.
 	unregisterClient chan *Client
 
+	// Register a room
 	registerRoom chan *Room
-
-	registerToRoom   chan RegisterToRoomInfo
-	unregisterToRoom chan RegisterToRoomInfo
-	// Unregister requests from clients.
+	// Unregister a room
 	unregisterRoom chan *Room
 }
 
 func NewHub() *Hub {
 	return &Hub{
-		broadcast:        make(chan []byte),
-		broadcastToRoom:  make(chan RoomMessage),
+		clients: make(map[*Client]bool),
+		rooms:   make(map[*Room]bool),
+
 		registerClient:   make(chan *Client),
 		unregisterClient: make(chan *Client),
-		registerRoom:     make(chan *Room),
-		unregisterRoom:   make(chan *Room),
-		registerToRoom:   make(chan RegisterToRoomInfo),
-		clients:          make(map[*Client]bool),
-		rooms:            make(map[*Room]bool),
-		activeRooms:      make(map[*Room]bool),
+
+		registerRoom:   make(chan *Room),
+		unregisterRoom: make(chan *Room),
 	}
 }
 
@@ -61,34 +53,23 @@ func (h *Hub) Run() {
 				delete(h.clients, client)
 				close(client.send)
 			}
-		case roomMessage := <-h.broadcastToRoom:
+		case room := <-h.registerRoom:
+			h.rooms[room] = true
+		case room := <-h.unregisterRoom:
+			if _, ok := h.rooms[room]; ok {
+				delete(h.rooms, room)
+				fmt.Println("Room removed")
+			}
 
-			for client := range roomMessage.room.clients {
-				select {
-				case client.send <- roomMessage.message:
-				default:
-					close(client.send)
-					delete(roomMessage.room.clients, client)
-				}
-			}
-		case info := <-h.registerToRoom:
-			info.room.clients[info.client] = true
-		case info := <-h.unregisterToRoom:
-			if _, ok := info.room.clients[info.client]; ok {
-				delete(info.room.clients, info.client)
-			}
-			if len(info.room.clients) == 0 {
-				h.unregisterRoom <- info.room
-			}
-		case message := <-h.broadcast:
-			for client := range h.clients {
-				select {
-				case client.send <- message:
-				default:
-					close(client.send)
-					delete(h.clients, client)
-				}
-			}
+			// case message := <-h.broadcast:
+			// 	for client := range h.clients {
+			// 		select {
+			// 		case client.send <- message:
+			// 		default:
+			// 			close(client.send)
+			// 			delete(h.clients, client)
+			// 		}
+			// 	}
 		}
 	}
 }
