@@ -1,7 +1,5 @@
 package chat
 
-import "fmt"
-
 // Hub maintains the set of active clients and broadcasts messages to the
 // clients.
 type Hub struct {
@@ -58,7 +56,6 @@ func (h *Hub) Run() {
 		case room := <-h.unregisterRoom:
 			if _, ok := h.rooms[room]; ok {
 				delete(h.rooms, room)
-				fmt.Println("Room removed")
 			}
 
 			// case message := <-h.broadcast:

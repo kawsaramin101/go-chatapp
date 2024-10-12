@@ -58,9 +58,14 @@
         </div>
     </header>
 {/if}
-
-<section class="section">
-    <div class="container">
+<section
+    class="section"
+    style="padding-top: 3.25rem; height: calc(100vh - 1rem);"
+>
+    <div
+        class="container"
+        style="height: 100%; display: flex; flex-direction: column;"
+    >
         <slot />
     </div>
 </section>

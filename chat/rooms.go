@@ -74,11 +74,9 @@ func (r *Room) RegisterClient(client *Client) {
 func (r *Room) UnregisterClient(client *Client) {
 	if _, ok := r.clients[client]; ok {
 		delete(r.clients, client)
-		fmt.Println("User Removed from Room")
 	}
 
 	if len(r.clients) == 0 {
 		r.hub.unregisterRoom <- r
-		fmt.Println(len(r.clients), " Room lengths")
 	}
 }
