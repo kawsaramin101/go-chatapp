@@ -24,14 +24,12 @@ export interface Chat {
 
 export interface Message {
     id?: number;
-    // dbId: string | null;
+
     dbSecondaryId: string | null;
     // localId: string;
     chatId: number;
 
-    createdAt: string;
-    // UpdatedAt: string;
-    // DeletedAt: string | null;
+    createdAt: Date;
 
     content: string;
     from: string;

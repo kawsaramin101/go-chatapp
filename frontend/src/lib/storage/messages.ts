@@ -1,9 +1,9 @@
-import type { Message } from "$lib/models"; }
+import type { Message } from "$lib/models";
 
 let db: IDBDatabase | null = null;
 
 const DB_NAME = "messageDB";
-const DB_VERSION = 1;
+const DB_VERSION = 4;
 
 export function openDatabase(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
@@ -16,16 +16,16 @@ export function openDatabase(): Promise<IDBDatabase> {
                     keyPath: "id",
                     autoIncrement: true,
                 });
-                messagesStore.createIndex("dbId", "dbId", {
-                    unique: true,
-                });
+                // messagesStore.createIndex("dbId", "dbId", {
+                //     unique: true,
+                // });
                 messagesStore.createIndex("dbSecondaryId", "dbSecondaryId", {
-                    unique: true,
+                    unique: false,
                 });
                 messagesStore.createIndex("chatId", "chatId", {
                     unique: false,
                 });
-                messagesStore.createIndex("userUsername", "userUsername", {
+                messagesStore.createIndex("from", "from", {
                     unique: false,
                 });
                 messagesStore.createIndex("content", "content", {
@@ -34,11 +34,13 @@ export function openDatabase(): Promise<IDBDatabase> {
                 messagesStore.createIndex("createdAt", "createdAt", {
                     unique: false,
                 });
-                messagesStore.createIndex("chatId_createdAt", ["chatId", "createdAt"], {
-                    unique: false,
-                });
-
-
+                messagesStore.createIndex(
+                    "chatId_createdAt",
+                    ["chatId", "createdAt"],
+                    {
+                        unique: false,
+                    },
+                );
             }
         };
 
@@ -61,62 +63,67 @@ export function getDatabase(): Promise<IDBDatabase> {
     }
 }
 
-export async function getAllMessagesFromAChat(chatId: number): Promise<Message[]> {
-  try {
-    const db = await getDatabase();
-    const transaction = db.transaction(["messages"], "readonly");
-    const store = transaction.objectStore("messages");
-    const index = store.index("chatId_createdAt");
-    const range = IDBKeyRange.bound([chatId, 0], [chatId, Date.now()]);
+export async function getAllMessagesFromAChat(
+    chatId: number,
+): Promise<Message[]> {
+    try {
+        const db = await getDatabase();
+        const transaction = db.transaction(["messages"], "readonly");
+        const store = transaction.objectStore("messages");
+        const index = store.index("chatId_createdAt");
+        console.log(chatId);
+        const range = IDBKeyRange.bound(
+            [chatId, new Date(0)],
+            [chatId, new Date()],
+        );
 
-    return new Promise((resolve, reject) => {
-      const request = index.openCursor(range, "prev");
-      const messages: Message[] = [];
+        return new Promise((resolve, reject) => {
+            const request = index.openCursor(range, "prev");
+            const messages: Message[] = [];
 
-      request.onsuccess = function (event) {
-        const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
-        if (cursor) {
-          messages.push(cursor.value);
-          cursor.continue();
-        } else {
-          resolve(messages);
-        }
-      };
+            request.onsuccess = function (event) {
+                const cursor = (event.target as IDBRequest<IDBCursorWithValue>)
+                    .result;
+                if (cursor) {
+                    messages.push(cursor.value);
+                    cursor.continue();
+                } else {
+                    resolve(messages);
+                }
+            };
 
-      request.onerror = function (event) {
-        reject((event.target as IDBRequest).error);
-      };
-    });
-  } catch (error) {
-    console.error("Failed to retrieve messages:", error);
-    throw error;
-  }
+            request.onerror = function (event) {
+                reject((event.target as IDBRequest).error);
+            };
+        });
+    } catch (error) {
+        console.error("Failed to retrieve messages:", error);
+        throw error;
+    }
 }
 
 export async function addMessageToStore(message: Message): Promise<Message> {
     try {
         const db = await getDatabase();
-        const transaction = db.transaction(["messages"], "readwrite");
+        const transaction = db.transaction("messages", "readwrite");
         const store = transaction.objectStore("messages");
 
-        // Adding the message to the store
+        console.log(message);
+
         const request: IDBRequest<IDBValidKey> = store.add(message);
 
         return new Promise((resolve, reject) => {
             request.onsuccess = function (event) {
-                const id = (event.target as IDBRequest<IDBValidKey>).result;
-                const getRequest: IDBRequest<Message> = store.get(id);
+                const id = (event.target as IDBRequest<IDBValidKey>)
+                    .result as number;
+                console.log(`Message added with id: ${id}`);
 
-                getRequest.onsuccess = function () {
-                    resolve(getRequest.result as Message);
-                };
-
-                getRequest.onerror = function (event) {
-                    reject((event.target as IDBRequest).error);
-                };
+                // You can resolve with the original message + ID if needed
+                resolve({ ...message, id });
             };
 
             request.onerror = function (event) {
+                console.error((event.target as IDBRequest).error, event.target);
                 reject((event.target as IDBRequest).error);
             };
         });
@@ -125,7 +132,6 @@ export async function addMessageToStore(message: Message): Promise<Message> {
         throw error;
     }
 }
-
 
 // export async function getNote(id, secondaryId) {
 //     if (id === undefined && secondaryId === undefined) {

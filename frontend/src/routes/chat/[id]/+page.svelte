@@ -4,13 +4,9 @@
     import { wsStore } from "$lib/stores/ws";
 
     import { activeChatId } from "$lib/stores/activeChatIdstore";
-
     import { messageStore } from "$lib/stores/messagesStore";
-
-    type Message = {
-        message: string;
-        from: string;
-    };
+    import { getAllMessagesFromAChat } from "$lib/storage/messages";
+    import type { Message } from "$lib/models";
 
     let messages: Message[] = [];
     let message: string = "";
@@ -18,27 +14,29 @@
 
     $: chatId = Number($page.params.id);
 
-    onMount(() => {
+    onMount(async () => {
         activeChatId.set(chatId);
+        messageStore.set(await getAllMessagesFromAChat(chatId));
+        console.log(await getAllMessagesFromAChat(chatId));
     });
 
     function handleIncommingMessage(event: MessageEvent) {
         const data = JSON.parse(event.data);
 
-        switch (data["action"]) {
-            // case "MESSAGE":
-            //     console.log(data["data"]["chatId"] as Number);
-            //     if ((data["data"]["chatId"] as Number) === chatId) {
-            //         const newMessage: Message = {
-            //             message: data["data"]["message"],
-            //             from: data["data"]["from"],
-            //         };
-            //         messages = [newMessage, ...messages];
-            //     }
-            //     break;
-            default:
-                break;
-        }
+        // switch (data["action"]) {
+        //     case "MESSAGE":
+        //         console.log(data["data"]["chatId"] as Number);
+        //         if ((data["data"]["chatId"] as Number) === chatId) {
+        //             const newMessage: Message = {
+        //                 message: data["data"]["message"],
+        //                 from: data["data"]["from"],
+        //             };
+        //             messages = [newMessage, ...messages];
+        //         }
+        //         break;
+        //     default:
+        //         break;
+        // }
     }
 
     $: if ($wsStore) {

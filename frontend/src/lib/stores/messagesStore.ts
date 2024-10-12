@@ -9,7 +9,7 @@ export const messageStoreOperations = {
     update: messageStore.update,
 
     addMessage: (newMessage: Message) => {
-        messageStore.update((messages) => [...messages, newMessage]);
+        messageStore.update((messages) => [newMessage, ...messages]);
     },
 
     // removeMessage: (id: string) => {

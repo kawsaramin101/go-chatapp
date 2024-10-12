@@ -11,6 +11,7 @@ import type { Message } from "$lib/models";
 import { API_BASE_URL } from "$lib/config/api";
 import { activeChatId } from "$lib/stores/activeChatIdstore";
 import { messageStoreOperations } from "$lib/stores/messagesStore";
+import { addMessageToStore } from "$lib/storage/messages";
 
 export const wsStore: Writable<WebSocket | null> = writable(null);
 let wsInstance: WebSocket | null = null;
@@ -50,24 +51,22 @@ export function initializeWebSocket(): WebSocket {
                 break;
 
             case "MESSAGE":
-                console.log(data["data"]["chatId"] as Number);
                 const chatId = get(activeChatId);
-
+                const newMessage: Message = {
+                    dbSecondaryId: data["data"]["chatSecondaryId"],
+                    chatId: data["data"]["chatId"],
+                    // CreatedAt: chatSecondaryId,
+                    content: data["data"]["message"],
+                    from: data["data"]["from"],
+                    createdAt: new Date(data["data"]["createdAt"]),
+                };
                 if (
                     chatId !== null &&
                     (data["data"]["chatId"] as Number) === chatId
                 ) {
-                    const newMessage: Message = {
-                        dbSecondaryId: data["data"]["chatSecondaryId"],
-                        chatId: data["data"]["chatId"],
-                        // CreatedAt: chatSecondaryId,
-                        content: data["data"]["message"],
-                        from: data["data"]["from"],
-                        createdAt: data["data"]["createdAt"],
-                    };
                     messageStoreOperations.addMessage(newMessage);
-                    // messages = [newMessage, ...messages];
                 }
+                addMessageToStore(newMessage);
                 break;
 
             default:
