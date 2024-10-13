@@ -116,9 +116,11 @@ func CheckIfUserExist(msg *Message, c *Client) {
 
 	err := json.Unmarshal(msg.Data, &data)
 
+	fmt.Println(string(msg.Data))
+
 	var errorData ErrorData
 
-	if err != nil {
+	if err == nil {
 		var user db.User
 		err := db.DB.Where("username = ?", data.Username).First(&user).Error
 
@@ -170,7 +172,6 @@ type HandleMessageData struct {
 
 func HandleMessage(msg *Message, c *Client) {
 	var data HandleMessageData
-	fmt.Println(string(msg.Data))
 	err := json.Unmarshal(msg.Data, &data)
 
 	var errorData ErrorData

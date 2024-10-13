@@ -161,12 +161,12 @@
         padding-bottom: 3rem;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
             Helvetica, Arial, sans-serif;
-        background-color: #121212; /* Dark background for the app */
-        color: #e0e0e0; /* Light text color */
+        background-color: #121212;
+        color: #e0e0e0;
     }
 
     #form {
-        background: rgba(50, 50, 50, 0.8); /* Dark form background */
+        background: rgba(0, 0, 0, 1);
         padding: 0.25rem;
         position: fixed;
         bottom: 0;
@@ -175,7 +175,6 @@
         display: flex;
         height: 3rem;
         box-sizing: border-box;
-        backdrop-filter: blur(10px);
         max-width: 50%;
         margin-left: auto;
         margin-right: auto;
@@ -187,23 +186,23 @@
         flex-grow: 1;
         border-radius: 2rem;
         margin: 0.25rem;
-        background-color: #2c2c2c; /* Dark input background */
-        color: #e0e0e0; /* Light input text */
+        background-color: #3c3c3c;
+        color: #e0e0e0;
     }
 
     #input:focus {
         outline: none;
-        background-color: #3c3c3c; /* Slightly lighter background on focus */
+        background-color: #3c3c3c;
     }
 
     #form > button {
-        background: #333; /* Dark button background */
+        background: #333;
         border: none;
         padding: 0 1rem;
         margin: 0.25rem;
         border-radius: 3px;
         outline: none;
-        color: #fff; /* White text for button */
+        color: #fff;
     }
 
     #messages {

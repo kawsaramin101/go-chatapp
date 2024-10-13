@@ -207,8 +207,6 @@ func (c *Client) readPump() {
 		}
 
 		switch msg.Action {
-		case "BROADCAST":
-
 		case "CREATECHAT":
 			CreateChat(&msg, c)
 

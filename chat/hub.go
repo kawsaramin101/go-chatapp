@@ -36,11 +36,6 @@ type RoomMessage struct {
 	message []byte
 }
 
-type RegisterToRoomInfo struct {
-	room   *Room
-	client *Client
-}
-
 func (h *Hub) Run() {
 	for {
 		select {
@@ -57,16 +52,6 @@ func (h *Hub) Run() {
 			if _, ok := h.rooms[room]; ok {
 				delete(h.rooms, room)
 			}
-
-			// case message := <-h.broadcast:
-			// 	for client := range h.clients {
-			// 		select {
-			// 		case client.send <- message:
-			// 		default:
-			// 			close(client.send)
-			// 			delete(h.clients, client)
-			// 		}
-			// 	}
 		}
 	}
 }

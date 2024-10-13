@@ -52,6 +52,9 @@
         <div class="navbar-end">
             <div class="navbar-item">
                 <a class="button is-link" href="/create_chat">Create Chat</a>
+                <a class="button is-link" href="/create_group_chat"
+                    >Create Group Chat</a
+                >
                 <button class="button is-light" on:click={logout}>Logout</button
                 >
             </div>
