@@ -44,41 +44,53 @@
     }
 </script>
 
-<main>
-    <form on:submit={handleSubmit}>
-        <h2>Login</h2>
-        <label for="username">Username:</label>
-        <input type="text" id="username" bind:value={username} required />
+<div class="columns is-centered">
+    <div class="column is-one-third">
+        <form
+            on:submit={handleSubmit}
+            class="has-background-dark is-shadowless box has-radius-medium"
+        >
+            <h2 class="title is-4 has-text-centered">Login</h2>
 
-        <label for="password">Password:</label>
-        <input type="password" id="password" bind:value={password} required />
+            <div class="field">
+                <label class="label" for="username">Username:</label>
+                <div class="control">
+                    <input
+                        class="input"
+                        type="text"
+                        id="username"
+                        bind:value={username}
+                        required
+                    />
+                </div>
+            </div>
 
-        <button type="submit">Login</button>
+            <div class="field">
+                <label class="label" for="password">Password:</label>
+                <div class="control">
+                    <input
+                        class="input"
+                        type="password"
+                        id="password"
+                        bind:value={password}
+                        required
+                    />
+                </div>
+            </div>
 
-        {#if error}
-            <span id="errorText">{error}</span>
-        {/if}
-    </form>
-</main>
+            <div class="field is-grouped is-grouped-centered">
+                <div class="control">
+                    <button class="button is-primary" type="submit"
+                        >Login</button
+                    >
+                </div>
+            </div>
 
-<style>
-    :global(html),
-    :global(body) {
-        height: 100%;
-        margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    form {
-        display: flex;
-        flex-direction: column;
-    }
-    h2 {
-        align-self: center;
-    }
-    input,
-    button {
-        margin-bottom: 10px;
-    }
-</style>
+            {#if error}
+                <span id="errorText" class="has-text-danger">{error}</span>
+            {/if}
+
+            <a href="/signup">Signup</a>
+        </form>
+    </div>
+</div>

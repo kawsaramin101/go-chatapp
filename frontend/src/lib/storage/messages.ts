@@ -108,17 +108,12 @@ export async function addMessageToStore(message: Message): Promise<Message> {
         const transaction = db.transaction("messages", "readwrite");
         const store = transaction.objectStore("messages");
 
-        console.log(message);
-
         const request: IDBRequest<IDBValidKey> = store.add(message);
 
         return new Promise((resolve, reject) => {
             request.onsuccess = function (event) {
                 const id = (event.target as IDBRequest<IDBValidKey>)
                     .result as number;
-                console.log(`Message added with id: ${id}`);
-
-                // You can resolve with the original message + ID if needed
                 resolve({ ...message, id });
             };
 

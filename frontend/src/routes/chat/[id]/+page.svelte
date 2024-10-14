@@ -64,61 +64,6 @@
     }
 </script>
 
-<!-- <div
-    class="container is-fluid"
-    style="display: flex; flex-direction: column; height: 100vh;"
->
-
-    <div class="columns is-centered" style="flex-grow: 1; overflow: hidden;">
-        <div
-            class="column is-half"
-            style="display: flex; flex-direction: column; height: 100%;"
-        >
-            <div
-                class="chat-container"
-                bind:this={chatContainer}
-                style="flex-grow: 1; overflow-y: auto;"
-            >
-
-                {#each $messageStore as msg}
-                    <div class="message">
-                        <strong>{msg.from}:</strong>
-                        {msg.content}
-                    </div>
-                {/each}
-            </div>
-        </div>
-    </div>
-
-
-    <div
-        class="columns is-centered"
-        style="flex-shrink: 0; position: sticky; bottom: 0; "
-    >
-        <div class="column is-half">
-            <form
-                id="form"
-                on:submit={handleSendMessage}
-                style="padding-bottom: 1rem;"
-            >
-                <div class="field is-grouped">
-                    <div class="control is-expanded">
-                        <input
-                            id="input"
-                            autocomplete="off"
-                            bind:value={message}
-                            class="input"
-                        />
-                    </div>
-                    <div class="control">
-                        <button class="button is-primary">Send</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-    </div>
-</div> -->
-
 <div class="container">
     <div class="columns is-centered">
         <div class="column is-half">
@@ -127,8 +72,7 @@
                     {#if currentUser === msg.from}
                         <li class="message-right">
                             <small>
-                                {msg.createdAt.toLocaleString()} -
-                                {msg.from}
+                                {msg.createdAt.toLocaleString()} - {msg.from}
                             </small>
                             <br />
                             {msg.content}
@@ -145,11 +89,8 @@
                 {/each}
             </ul>
             <form id="form" on:submit={handleSendMessage}>
-                <input
-                    id="input"
-                    bind:value={message}
-                    autocomplete="off"
-                /><button>Send</button>
+                <input id="input" bind:value={message} autocomplete="off" />
+                <button>Send</button>
             </form>
         </div>
     </div>
@@ -212,7 +153,12 @@
         max-width: 100%;
         margin-left: auto;
         margin-right: auto;
-        padding-bottom: 4rem;
+        margin-top: 2rem;
+        padding-bottom: 2rem;
+        display: flex;
+        flex-direction: column-reverse; /* Invert the order */
+        max-height: 85vh;
+        overflow-y: auto; /* Enable scrolling */
     }
 
     .message-left {
@@ -223,11 +169,9 @@
         color: white;
         max-width: 70%;
         word-wrap: break-word;
-        align-self: flex-start;
         text-align: left;
         box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.5);
-        float: left;
-        clear: both;
+        align-self: flex-start; /* Align to the left */
     }
 
     .message-right {
@@ -238,10 +182,8 @@
         color: #e0e0e0;
         max-width: 70%;
         word-wrap: break-word;
-        align-self: flex-end;
         text-align: right;
-        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.5); /* Subtle shadow */
-        float: right;
-        clear: both;
+        box-shadow: 0px 2px 5px rgba(0, 0, 0, 0.5);
+        align-self: flex-end; /* Align to the right */
     }
 </style>

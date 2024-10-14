@@ -50,46 +50,67 @@
     }
 </script>
 
-<form on:submit={handleSubmit}>
-    <h2>Signup</h2>
-    <label for="username">Username:</label>
-    <input type="text" id="username" bind:value={username} required />
+<div class="columns is-centered">
+    <div class="column is-one-third">
+        <form
+            on:submit={handleSubmit}
+            class="has-background-dark box has-radius-medium"
+        >
+            <h2 class="title is-4 has-text-centered">Signup</h2>
 
-    <label for="password">Password:</label>
-    <input type="password" id="password" bind:value={password} required />
+            <div class="field">
+                <label class="label" for="username">Username:</label>
+                <div class="control">
+                    <input
+                        class="input"
+                        type="text"
+                        id="username"
+                        bind:value={username}
+                        required
+                    />
+                </div>
+            </div>
 
-    <label for="confirm-password">Confirm Password:</label>
-    <input
-        type="password"
-        id="confirm-password"
-        bind:value={confirmPassword}
-        required
-    />
+            <div class="field">
+                <label class="label" for="password">Password:</label>
+                <div class="control">
+                    <input
+                        class="input"
+                        type="password"
+                        id="password"
+                        bind:value={password}
+                        required
+                    />
+                </div>
+            </div>
 
-    <button type="submit">Sign Up</button>
+            <div class="field">
+                <label class="label" for="confirm-password"
+                    >Confirm Password:</label
+                >
+                <div class="control">
+                    <input
+                        class="input"
+                        type="password"
+                        id="confirm-password"
+                        bind:value={confirmPassword}
+                        required
+                    />
+                </div>
+            </div>
 
-    <span>{errorText}</span>
-</form>
+            <div class="field is-grouped is-grouped-centered">
+                <div class="control">
+                    <button class="button is-primary" type="submit"
+                        >Sign Up</button
+                    >
+                </div>
+            </div>
 
-<style>
-    :global(html),
-    :global(body) {
-        height: 100%;
-        margin: 0;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-    form {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-    h2 {
-        align-self: center;
-    }
-    label,
-    button {
-        margin-bottom: 10px;
-    }
-</style>
+            {#if errorText}
+                <span id="errorText" class="has-text-danger">{errorText}</span>
+            {/if}
+            <a href="/login" class="has-text-centered">Login</a>
+        </form>
+    </div>
+</div>
