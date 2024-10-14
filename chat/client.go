@@ -144,11 +144,7 @@ func (c *Client) waitForAuth() {
 		go c.writePump()
 		go c.readPump()
 		jsonData, err := json.Marshal(initialData)
-
 		c.send <- jsonData
-
-		return
-
 	}
 }
 
@@ -298,7 +294,9 @@ func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
 	}
 
 	// If user is found, preload Chats
-	if err := db.DB.Preload("Chats").First(&user, user.ID).Error; err != nil {
+	if err := db.DB.Preload("Chats", func(db *gorm.DB) *gorm.DB {
+		return db.Order("id desc")
+	}).First(&user, user.ID).Error; err != nil {
 		return err
 	}
 

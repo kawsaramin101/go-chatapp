@@ -18,7 +18,9 @@ type ErrorData struct {
 }
 
 type CreateChatData struct {
-	Usernames []string `json:"usernames"`
+	Usernames     []string `json:"usernames"`
+	IsPrivateChat bool     `json:"isPrivateChat"`
+	ChatName      string   `json:"chatName"`
 }
 
 func CreateChat(msg *Message, c *Client) {
@@ -28,7 +30,7 @@ func CreateChat(msg *Message, c *Client) {
 	var errorData ErrorData
 
 	if err == nil {
-		newChat := db.Chat{SecondaryID: uuid.New().String(), IsPrivateChat: true}
+		newChat := db.Chat{SecondaryID: uuid.New().String(), IsPrivateChat: data.IsPrivateChat, Name: data.ChatName}
 
 		db.DB.Create(&newChat)
 
@@ -93,7 +95,7 @@ func CreateChat(msg *Message, c *Client) {
 
 		enCodedData, _ := json.Marshal(data)
 		c.send <- enCodedData
-
+		return
 	} else {
 		log.Printf("error unmarshaling JSON: %v", err)
 		errorData.Action = "ERROR_INVALID_PAYLOAD"

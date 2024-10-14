@@ -9,6 +9,7 @@
 
     let username = "";
     let users: string[] = [];
+    let chatName = "";
 
     function createChat(event: SubmitEvent) {
         event.preventDefault();
@@ -18,7 +19,9 @@
         const sendingData = {
             action: "CREATECHAT",
             data: {
-                usernames: [formData.get("username")],
+                usernames: users,
+                chatName: chatName,
+                isPrivateChat: false,
             },
         };
         $wsStore?.send(JSON.stringify(sendingData));
@@ -33,7 +36,9 @@
     });
 
     function handleIncommingMessage(event: MessageEvent) {
+        console.log(event.data);
         const data = JSON.parse(event.data);
+
         switch (data["action"]) {
             case "CHECK_IF_USER_EXIST":
                 const exists = data["data"]["exists"] as boolean;
@@ -76,6 +81,18 @@
 
     function checkUser(event: SubmitEvent) {
         event.preventDefault();
+        if (users.includes(username)) {
+            Toastify({
+                text: "User already added",
+                duration: 3000,
+                close: true,
+                gravity: "top",
+                position: "center",
+                stopOnFocus: true,
+                onClick: function () {},
+            }).showToast();
+            return;
+        }
         const sendingData = {
             action: "CHECK_IF_USER_EXIST",
             data: {
@@ -115,8 +132,8 @@
                             class="input is-flex-grow-1"
                             id="chatName"
                             name="chatName"
-                            value=""
                             placeholder="Chat Name"
+                            bind:value={chatName}
                         />
                         <div class="control">
                             <button class="button is-primary ml-2" type="submit"
@@ -130,14 +147,14 @@
 
         <div class="column is-half">
             <h3 class="title is-3 has-text-centered">Added Users</h3>
-            <div class="box">
-                <ul class="list">
+            <div class="has-background-dark p-3">
+                <ol class="list">
                     {#each users as user, index}
                         <li class="list-item">
                             <strong>{user}</strong>
                         </li>
                     {/each}
-                </ul>
+                </ol>
             </div>
         </div>
     </div>

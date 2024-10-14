@@ -12,7 +12,7 @@
     }
 
     function getChatName(chat: Chat) {
-        if (chat.name !== "") return chat.name;
+        if (chat.name !== null && chat.name !== "") return chat.name;
 
         if (chat.users.length == 1 && chat.users[0].username == currentUser)
             return "You";
