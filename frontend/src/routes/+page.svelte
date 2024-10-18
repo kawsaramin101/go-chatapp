@@ -24,21 +24,41 @@
     }
 </script>
 
-<div class="section">
-    <div class="container has-text-centered">
-        <!-- Centered Login and Create Chat links -->
-        <div class="buttons is-centered">
-            <a class="button is-primary" href="/login">Login</a>
-        </div>
+<div class="columns is-centered">
+    <div class="column is-half">
+        <div class="container">
+            <div class="tabs is-toggle is-fullwidth">
+                <ul>
+                    <li class="is-active"><a href="/">Inbox</a></li>
+                    <li><a href="message_requests">Requests</a></li>
+                </ul>
+            </div>
 
-        <ul>
-            {#each $chats as chat}
-                <li class="mt-4">
-                    <a class="has-text-weight-bold" href="/chat/{chat.ID}">
-                        {getChatName(chat)}
-                    </a>
-                </li>
-            {/each}
-        </ul>
+            <ul class="menu-list">
+                {#each $chats as chat}
+                    <li class="mt-2">
+                        <a
+                            href="/chat/{chat.ID}"
+                            class="is-block has-background-dark p-3 has-text-light"
+                        >
+                            <span class="is-size-6">{getChatName(chat)}</span>
+                            <p class="has-text-grey-lighter is-size-7 mt-1">
+                                Lorem Ipsum is simply dummy text of the prin
+                            </p>
+                        </a>
+                    </li>
+                {/each}
+            </ul>
+        </div>
     </div>
 </div>
+
+<style>
+    .menu-list a {
+        transition: background-color 0.3s ease;
+        border-radius: 5px;
+    }
+    .menu-list a:hover {
+        background-color: #363636 !important;
+    }
+</style>

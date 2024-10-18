@@ -2,6 +2,7 @@ package chat
 
 import (
 	db "chatapp/db"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -39,7 +40,7 @@ func CreateChat(msg *Message, c *Client) {
 		db.DB.Model(&newChat).Association("Users").Append(&c.dbUser)
 		db.DB.Model(&c.dbUser).Association("Chats").Append(&newChat)
 
-		var newChatMembers []db.ChatMember
+		var newConnectionRequests []db.ConnectionRequest
 		var foundUsers []db.User
 
 		for _, anotherUserUsername := range data.Usernames {
@@ -65,15 +66,25 @@ func CreateChat(msg *Message, c *Client) {
 			} else {
 				foundUsers = append(foundUsers, anotherUser)
 
-				newChatMember := db.ChatMember{SecondaryID: uuid.New().String(), Role: "user", UserID: anotherUser.ID, ChatID: newChat.ID}
+				newConnectionRequest := db.ConnectionRequest{SecondaryID: uuid.New().String(), IsAccepted: sql.NullBool{Bool: false, Valid: true}, SendByID: c.dbUser.ID, SendToID: anotherUser.ID, ChatID: newChat.ID}
+				// newChatMember := db.ChatMember{SecondaryID: uuid.New().String(), Role: "user", UserID: anotherUser.ID, ChatID: newChat.ID}
 
-				newChatMembers = append(newChatMembers, newChatMember)
+				// If user is currently active send the connection requests info
+				for client := range c.hub.clients {
+					if client.dbUser.ID == anotherUser.ID {
+						client.sendActions <- "SEND_CONNECTION_REQUESTS"
+						break
+					}
+				}
+
+				newConnectionRequests = append(newConnectionRequests, newConnectionRequest)
 
 				db.DB.Model(&anotherUser).Association("Chats").Append(&newChat)
 
 			}
-			db.DB.Create(&newChatMembers)
-			db.DB.Model(&newChat).Association("Users").Append(&foundUsers)
+			db.DB.Create(&newConnectionRequests)
+			db.DB.Model(&newChat).Association("ConnectionRequests").Append(&newConnectionRequests)
+			// db.DB.Model(&newChat).Association("Users").Append(&foundUsers)
 
 		}
 		data := struct {

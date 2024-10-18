@@ -71,7 +71,7 @@ export async function getAllMessagesFromAChat(
         const transaction = db.transaction(["messages"], "readonly");
         const store = transaction.objectStore("messages");
         const index = store.index("chatId_createdAt");
-        console.log(chatId);
+
         const range = IDBKeyRange.bound(
             [chatId, new Date(0)],
             [chatId, new Date()],

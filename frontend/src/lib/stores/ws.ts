@@ -7,6 +7,8 @@ import Toastify from "toastify-js";
 import "toastify-js/src/toastify.css";
 
 import { chats } from "$lib/stores/chats";
+import { connectionRequestStore } from "$lib/stores/connectionRequests";
+
 import type { Message } from "$lib/models";
 import { API_BASE_URL } from "$lib/config/api";
 import { activeChatId } from "$lib/stores/activeChatIdstore";
@@ -30,6 +32,7 @@ export function initializeWebSocket(): WebSocket {
     };
 
     wsInstance.onmessage = (event: MessageEvent) => {
+        console.log(event.data);
         const data = JSON.parse(event.data);
         switch (data["action"]) {
             case "ERROR_USER_NOT_FOUND":
@@ -48,6 +51,9 @@ export function initializeWebSocket(): WebSocket {
 
             case "INITIAL_DATA":
                 chats.setChats(data["data"]["chats"]);
+                break;
+            case "CONNECTION_REQUESTS":
+                connectionRequestStore.set(data["data"]["connectionRequests"]);
                 break;
 
             case "MESSAGE":

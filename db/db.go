@@ -27,20 +27,20 @@ type User struct {
 // Connection model
 type ConnectionRequest struct {
 	gorm.Model
-	SecondaryID string `gorm:"unique;not null"`
+	SecondaryID string `gorm:"unique;not null" json:"secondaryID"`
 
-	IsAccepted sql.NullBool `gorm:"column:is_accepted"`
+	IsAccepted sql.NullBool `gorm:"column:is_accepted" json:"isAccepted"`
 
 	// Foreign keys linking to User model
-	SendByID uint `gorm:"not null"`
-	SendBy   User `gorm:"foreignKey:SendByID"`
+	SendByID uint `gorm:"not null" json:"-"`
+	SendBy   User `gorm:"foreignKey:SendByID" json:"sendBy"`
 
-	SendToID uint `gorm:"not null"`
-	SendTo   User `gorm:"foreignKey:SendToID"`
+	SendToID uint `gorm:"not null" json:"-"`
+	SendTo   User `gorm:"foreignKey:SendToID" json:"-"`
 
 	// Foreign key linking to Chat model
-	ChatID uint `gorm:"not null"`
-	Chat   Chat `gorm:"foreignKey:ChatID"`
+	ChatID uint `gorm:"not null" json:"-"`
+	Chat   Chat `gorm:"foreignKey:ChatID" json:"chat"`
 }
 
 type ChatMember struct {

@@ -34,3 +34,10 @@ export interface Message {
     content: string;
     from: string;
 }
+
+export interface ConnectionRequest {
+    secondaryID: string;
+    isAccepted: boolean;
+    sendBy: User;
+    chat: Chat;
+}

@@ -54,7 +54,7 @@
     <div class="column is-one-third">
         <form
             on:submit={handleSubmit}
-            class="has-background-dark box has-radius-medium"
+            class="has-background-dark is-shadowless box has-radius-medium"
         >
             <h2 class="title is-4 has-text-centered">Signup</h2>
 

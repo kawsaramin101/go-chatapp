@@ -31,11 +31,6 @@ func NewHub() *Hub {
 	}
 }
 
-type RoomMessage struct {
-	room    *Room
-	message []byte
-}
-
 func (h *Hub) Run() {
 	for {
 		select {

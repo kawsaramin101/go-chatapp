@@ -1,17 +1,19 @@
-Issue
+mIssue
 1. Message get multiplied -Fixed
 
 Roadmap
 1. Group chat - Done
-2. Add bulma and improve styles in add chat page, login and signup page
-2. Add bulma to frontend and improve frontend - Half Done
+2. Add bulma and improve styles in add chat page, login and signup page - Done
+2. Add bulma to frontend and improve frontend - Done
 3. Seen status in duo chat
-4. Message storing - Done
+4. Message storing in frontend - Done
 5. Show connection and disconnection info using Toastify
 6. Chat Request
 7. Latest massage
 8. Don't add members twice in a room
-9. Don't allow duplicate usernames
+9. Don't allow duplicate usernames in signup
 10. Remove user when creating group chat
 11. Implement showing chat requests in frontend
 12. Show new messages in the bottom and scroll to bottom
+13. Message storing in Backend and sent unread messages on initial connection
+14. Members list in group chat

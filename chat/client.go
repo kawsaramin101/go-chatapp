@@ -53,7 +53,8 @@ type Client struct {
 	conn *websocket.Conn
 
 	// Buffered channel of outbound messages.
-	send chan []byte
+	send        chan []byte
+	sendActions chan string
 
 	dbUser db.User
 }
@@ -141,10 +142,27 @@ func (c *Client) waitForAuth() {
 				Chats: user.Chats,
 			},
 		}
+
+		connectionRequests := struct {
+			Action string `json:"action"`
+			Data   struct {
+				ConnectionRequests []db.ConnectionRequest `json:"connectionRequests"`
+			} `json:"data"`
+		}{
+			Action: "CONNECTION_REQUESTS",
+			Data: struct {
+				ConnectionRequests []db.ConnectionRequest `json:"connectionRequests"`
+			}{
+				ConnectionRequests: user.ReceivedRequests,
+			},
+		}
+
 		go c.writePump()
 		go c.readPump()
 		jsonData, err := json.Marshal(initialData)
+		connectionRequestsJsonData, err := json.Marshal(connectionRequests)
 		c.send <- jsonData
+		c.send <- connectionRequestsJsonData
 	}
 }
 
@@ -246,12 +264,12 @@ func (c *Client) writePump() {
 			w.Write(message)
 
 			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				msg := <-c.send
-				w.Write(newline)
-				w.Write(msg)
-			}
+			// n := len(c.send)
+			// for i := 0; i < n; i++ {
+			// 	msg := <-c.send
+			// 	w.Write(newline)
+			// 	w.Write(msg)
+			// }
 
 			if err := w.Close(); err != nil {
 				fmt.Println(err)
@@ -262,6 +280,32 @@ func (c *Client) writePump() {
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}
+		case action := <-c.sendActions:
+			switch action {
+			case "SEND_CONNECTION_REQUESTS":
+				db.DB.Preload("ReceivedRequests").
+					Preload("ReceivedRequests.SendBy").
+					Preload("ReceivedRequests.Chat").
+					Preload("ReceivedRequests").
+					Find(&c.dbUser, c.dbUser.ID)
+
+				connectionRequests := struct {
+					Action string `json:"action"`
+					Data   struct {
+						ConnectionRequests []db.ConnectionRequest `json:"connectionRequests"`
+					} `json:"data"`
+				}{
+					Action: "CONNECTION_REQUESTS",
+					Data: struct {
+						ConnectionRequests []db.ConnectionRequest `json:"connectionRequests"`
+					}{
+						ConnectionRequests: c.dbUser.ReceivedRequests,
+					},
+				}
+				connectionRequestsJsonData, _ := json.Marshal(connectionRequests)
+				c.send <- connectionRequestsJsonData
+			}
+			fmt.Println(action)
 		}
 	}
 }
@@ -275,10 +319,11 @@ func ServeWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := &Client{
-		hub:   hub,
-		conn:  conn,
-		send:  make(chan []byte, 256),
-		rooms: make(map[*Room]bool),
+		hub:         hub,
+		conn:        conn,
+		send:        make(chan []byte, 256),
+		sendActions: make(chan string, 256),
+		rooms:       make(map[*Room]bool),
 	}
 	client.hub.registerClient <- client
 
@@ -298,6 +343,16 @@ func getUserAndRoomInfo(userSecondaryId string, user *db.User) error {
 		return db.Order("id desc")
 	}).First(&user, user.ID).Error; err != nil {
 		return err
+	}
+
+	err := db.DB.Preload("ReceivedRequests").
+		Preload("ReceivedRequests.SendBy").
+		Preload("ReceivedRequests.Chat").
+		Preload("ReceivedRequests").
+		Find(&user, user.ID)
+
+	if err != nil {
+		return err.Error
 	}
 
 	return nil
